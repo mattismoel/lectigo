@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"lectio-scraper/lectio"
+	"lectio-scraper/utils"
 	"log"
 	"net/http"
 	"net/http/cookiejar"
@@ -32,7 +32,7 @@ func main() {
 	loginUrl := fmt.Sprintf("https://www.lectio.dk/lectio/%s/login.aspx", schoolID)
 	jar, _ := cookiejar.New(nil)
 	client := &http.Client{Jar: jar}
-	authToken := lectio.GetToken(loginUrl, client)
+	authToken := utils.GetToken(loginUrl, client)
 	err := c.Post(loginUrl, map[string]string{
 		"m$Content$username": userName,
 		"m$Content$password": password,
