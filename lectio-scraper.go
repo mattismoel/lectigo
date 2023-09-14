@@ -1,11 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"lectio-scraper/utils"
 	"log"
 	"net/http"
 	"net/http/cookiejar"
+	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -24,9 +26,9 @@ type Module struct {
 	Status    string    `json:"status"`    // The status of the module (eg. "Ændret" or "Aflyst")
 }
 
-var userName string = ""
-var password string = ""
-var schoolID string = ""
+var userName string = "" // Username of user
+var password string = "" // Password of user
+var schoolID string = "" // School ID of user. This can be found on the logged on homepage of Lectio (eg. www.lectio.dk/lectio/<id>/SkemaNy.aspx)
 
 func main() {
 	c := colly.NewCollector(colly.AllowedDomains("lectio.dk", "www.lectio.dk"))
@@ -34,6 +36,7 @@ func main() {
 	jar, _ := cookiejar.New(nil)
 	client := &http.Client{Jar: jar}
 	authToken := utils.GetToken(loginUrl, client)
+	// Attempts to log the user in with the given login information
 	err := c.Post(loginUrl, map[string]string{
 		"m$Content$username": userName,
 		"m$Content$password": password,
@@ -45,15 +48,12 @@ func main() {
 	})
 
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Could not log the user in. Please check that the login information is correct", err)
 	}
 
+	// Function is fired when a new page is loaded
 	c.OnResponse(func(r *colly.Response) {
-		log.Println("response received", r.StatusCode)
-	})
-
-	c.OnHTML("div.maintitle", func(e *colly.HTMLElement) {
-		fmt.Println(e.Text)
+		log.Println("response received", r.StatusCode, r.Request.URL)
 	})
 
 	err = c.Visit("https://www.lectio.dk/lectio/143/forside.aspx")
@@ -61,13 +61,12 @@ func main() {
 		log.Fatalf("Could not visit %s. %s", "https://www.lectio.dk/lectio/143/forside.aspx", err)
 	}
 
-	for _, module := range getScheduleWeeks(c, 2) {
+	for _, module := range getScheduleWeeks(c, 2, true) {
 		fmt.Println(module)
 	}
-	fmt.Println("Opened login page")
 }
 
-func getScheduleWeeks(c *colly.Collector, weekCount int) []Module {
+func getScheduleWeeks(c *colly.Collector, weekCount int, toJSON bool) []Module {
 	modules := []Module{}
 
 	for i := 0; i < weekCount; i++ {
@@ -75,9 +74,22 @@ func getScheduleWeeks(c *colly.Collector, weekCount int) []Module {
 		weekModules := getSchedule(c, week+i)
 		modules = append(modules, weekModules...)
 	}
+
+	if toJSON && len(modules) > 0 {
+		b, err := json.Marshal(modules)
+		if err != nil {
+			log.Fatal("Could not marshal JSON.", err)
+		}
+
+		err = os.WriteFile("schedule.json", b, 0644)
+		if err != nil {
+			log.Fatal("Could not write to file", err)
+		}
+	}
 	return modules
 }
 
+// Returns the modules of a given week. Preferably the getScheduleWeeks() function is used.
 func getSchedule(c *colly.Collector, week int) []Module {
 	wg := sync.WaitGroup{}
 	modules := []Module{}
@@ -120,7 +132,7 @@ func getSchedule(c *colly.Collector, week int) []Module {
 					}
 					endDateTime, err := time.Parse("15:04", strings.TrimSpace(parts[1]))
 					if err == nil {
-						endDate = endDateTime
+						endDate = time.Date(startDateTime.Year(), startDate.Month(), startDate.Day(), endDateTime.Hour(), endDateTime.Minute(), 0, 0, time.UTC)
 					}
 				}
 			}
