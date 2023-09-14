@@ -24,9 +24,9 @@ type Module struct {
 	Status    string    `json:"status"`    // The status of the module (eg. "Ændret" or "Aflyst")
 }
 
-var userName string = ""
-var password string = ""
-var schoolID string = ""
+var userName string = "matt1894"
+var password string = "MulerneMoel0102"
+var schoolID string = "143"
 
 func main() {
 	c := colly.NewCollector(colly.AllowedDomains("lectio.dk", "www.lectio.dk"))
@@ -61,13 +61,31 @@ func main() {
 		log.Fatalf("Could not visit %s. %s", "https://www.lectio.dk/lectio/143/forside.aspx", err)
 	}
 
-	for _, module := range getSchedule(c) {
-		fmt.Printf("%s: %v:%v - %v:%v\n", module.Title, module.StartDate.Hour(), module.StartDate.Minute(), module.EndDate.Hour(), module.EndDate.Minute())
+	// fmt.Println("==================================================================================")
+
+	// for _, module := range getSchedule(c, 38) {
+	// 	fmt.Printf("%s: %v - %v\n", module.Title, module.StartDate.Format("2006-01-02 15:04:05"), module.EndDate.Format("15:04:05"))
+	// }
+	// fmt.Println("==================================================================================")
+
+	for _, module := range getScheduleWeeks(c, 2) {
+		fmt.Println(module)
 	}
 	fmt.Println("Opened login page")
 }
 
-func getSchedule(c *colly.Collector) []Module {
+func getScheduleWeeks(c *colly.Collector, weekCount int) []Module {
+	modules := []Module{}
+
+	for i := 0; i < weekCount; i++ {
+		_, week := time.Now().ISOWeek()
+		weekModules := getSchedule(c, week+i)
+		modules = append(modules, weekModules...)
+	}
+	return modules
+}
+
+func getSchedule(c *colly.Collector, week int) []Module {
 	wg := sync.WaitGroup{}
 	modules := []Module{}
 	c.OnHTML("a.s2skemabrik.s2brik", func(e *colly.HTMLElement) {
@@ -78,7 +96,6 @@ func getSchedule(c *colly.Collector) []Module {
 		lines := strings.Split(addInfo, "\n")
 
 		var title, teacher, room, status string
-		// var startDate, endDate time.Time
 		var startDate, endDate time.Time
 
 		for i, line := range lines {
@@ -128,7 +145,11 @@ func getSchedule(c *colly.Collector) []Module {
 		}
 		modules = append(modules, module)
 	})
-	c.Visit("https://www.lectio.dk/lectio/143/SkemaNy.aspx")
+
+	weekString := fmt.Sprintf("%v%v", week, time.Now().Year())
+	scheduleUrl := fmt.Sprintf("https://www.lectio.dk/lectio/143/SkemaNy.aspx?week=%v", weekString)
+	c.Visit(scheduleUrl)
+
 	wg.Wait()
 	sort.Slice(modules, func(i, j int) bool {
 		return modules[i].StartDate.Before(modules[j].StartDate)
