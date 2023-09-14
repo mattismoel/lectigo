@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/cookiejar"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -20,7 +21,7 @@ type Module struct {
 	Room      string    `json:"room"`      // The room of the module (eg. 22)
 	Teacher   string    `json:"teacher"`   // The teacher of the class
 	Homework  string    `json:"homework"`  // Homework for the module
-	Status    string    `json"status"`     // The status of the module (eg. "Ændret" or "Aflyst")
+	Status    string    `json:"status"`    // The status of the module (eg. "Ændret" or "Aflyst")
 }
 
 var userName string = ""
@@ -60,11 +61,9 @@ func main() {
 		log.Fatalf("Could not visit %s. %s", "https://www.lectio.dk/lectio/143/forside.aspx", err)
 	}
 
-	getSchedule(c)
-
-	// for _, module := range modules {
-	// 	fmt.Println(module.Teacher)
-	// }
+	for _, module := range getSchedule(c) {
+		fmt.Printf("%s: %v:%v - %v:%v\n", module.Title, module.StartDate.Hour(), module.StartDate.Minute(), module.EndDate.Hour(), module.EndDate.Minute())
+	}
 	fmt.Println("Opened login page")
 }
 
@@ -79,6 +78,9 @@ func getSchedule(c *colly.Collector) []Module {
 		lines := strings.Split(addInfo, "\n")
 
 		var title, teacher, room, status string
+		// var startDate, endDate time.Time
+		var startDate, endDate time.Time
+
 		for i, line := range lines {
 			if strings.Contains(line, "Hold: ") {
 				_, title, _ = strings.Cut(line, ": ")
@@ -98,12 +100,27 @@ func getSchedule(c *colly.Collector) []Module {
 			if i == 0 && (strings.Contains(line, "Ændret!") || strings.Contains(line, "Aflyst!")) {
 				status = strings.TrimSpace(line)
 			}
+
+			if strings.Contains(line, "til") {
+				parts := strings.Split(line, "til")
+				if len(parts) == 2 {
+					startDateTime, err := time.Parse("02/1-2006 15:04", strings.TrimSpace(parts[0]))
+					if err == nil {
+						startDate = startDateTime
+					}
+					endDateTime, err := time.Parse("15:04", strings.TrimSpace(parts[1]))
+					if err == nil {
+						endDate = endDateTime
+					}
+				}
+			}
+
 		}
 
 		module := Module{
 			Title:     title,
-			StartDate: time.Now(),
-			EndDate:   time.Now(),
+			StartDate: startDate,
+			EndDate:   endDate,
 			Room:      room,
 			Teacher:   teacher,
 			Homework:  "",
@@ -113,5 +130,8 @@ func getSchedule(c *colly.Collector) []Module {
 	})
 	c.Visit("https://www.lectio.dk/lectio/143/SkemaNy.aspx")
 	wg.Wait()
+	sort.Slice(modules, func(i, j int) bool {
+		return modules[i].StartDate.Before(modules[j].StartDate)
+	})
 	return modules
 }
