@@ -24,9 +24,9 @@ type Module struct {
 	Status    string    `json:"status"`    // The status of the module (eg. "Ændret" or "Aflyst")
 }
 
-var userName string = "matt1894"
-var password string = "MulerneMoel0102"
-var schoolID string = "143"
+var userName string = ""
+var password string = ""
+var schoolID string = ""
 
 func main() {
 	c := colly.NewCollector(colly.AllowedDomains("lectio.dk", "www.lectio.dk"))
@@ -60,13 +60,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Could not visit %s. %s", "https://www.lectio.dk/lectio/143/forside.aspx", err)
 	}
-
-	// fmt.Println("==================================================================================")
-
-	// for _, module := range getSchedule(c, 38) {
-	// 	fmt.Printf("%s: %v - %v\n", module.Title, module.StartDate.Format("2006-01-02 15:04:05"), module.EndDate.Format("15:04:05"))
-	// }
-	// fmt.Println("==================================================================================")
 
 	for _, module := range getScheduleWeeks(c, 2) {
 		fmt.Println(module)
