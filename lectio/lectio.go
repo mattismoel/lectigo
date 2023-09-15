@@ -3,7 +3,6 @@ package lectio
 import (
 	"encoding/json"
 	"fmt"
-	"lectio-scraper/utils"
 	"log"
 	"net/http"
 	"net/http/cookiejar"
@@ -13,8 +12,17 @@ import (
 	"sync"
 	"time"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/gocolly/colly"
 )
+
+type App struct {
+	Client *http.Client
+}
+
+type AuthenticityToken struct {
+	Token string
+}
 
 type LectioLoginInfo struct {
 	Username string `json:"username"`
@@ -46,7 +54,7 @@ func (lectio *Lectio) Initialise(loginInfo *LectioLoginInfo) {
 	lectio.Client = &http.Client{Jar: jar}
 	lectio.Collector = colly.NewCollector(colly.AllowedDomains("lectio.dk", "www.lectio.dk"))
 
-	authToken := utils.GetToken(loginUrl, lectio.Client)
+	authToken := GetToken(loginUrl, lectio.Client)
 
 	// Attempts to log the user in with the given login information
 	err := lectio.Collector.Post(loginUrl, map[string]string{
@@ -174,4 +182,25 @@ func (lectio *Lectio) GetScheduleWeeks(weekCount int, toJSON bool) []Module {
 		}
 	}
 	return modules
+}
+
+func GetToken(loginUrl string, client *http.Client) AuthenticityToken {
+
+	response, err := client.Get(loginUrl)
+
+	if err != nil {
+		log.Fatal("Error fetching response: ", err)
+	}
+
+	defer response.Body.Close()
+
+	document, err := goquery.NewDocumentFromReader(response.Body)
+	if err != nil {
+		log.Fatal("Error loading HTTP response body.", err)
+	}
+
+	token, _ := document.Find("input[name=__EVENTVALIDATION]").Attr("value")
+
+	authenticityToken := AuthenticityToken{Token: token}
+	return authenticityToken
 }
