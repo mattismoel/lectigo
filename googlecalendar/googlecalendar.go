@@ -9,7 +9,34 @@ import (
 	"os"
 
 	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
+	"google.golang.org/api/calendar/v3"
+	"google.golang.org/api/option"
 )
+
+type GoogleCalendar struct {
+	Client  *http.Client
+	Service *calendar.Service
+}
+
+func (googleCalendar *GoogleCalendar) Initialise() {
+	ctx := context.Background()
+	bytes, err := os.ReadFile("credentials.json")
+	if err != nil {
+		log.Fatalf("Could not read client secret file: %v", err)
+	}
+
+	config, err := google.ConfigFromJSON(bytes, calendar.CalendarEventsScope)
+	if err != nil {
+		log.Fatalf("Unable to parse client secret file to config: %v", err)
+	}
+	googleCalendar.Client = GetClient(config)
+
+	googleCalendar.Service, err = calendar.NewService(ctx, option.WithHTTPClient(googleCalendar.Client))
+	if err != nil {
+		log.Fatalf("Could not get Calendar client: %v", err)
+	}
+}
 
 func GetClient(config *oauth2.Config) *http.Client {
 	tokenFile := "token.json"
