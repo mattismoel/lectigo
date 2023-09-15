@@ -3,12 +3,12 @@ package lectio
 import (
 	"encoding/json"
 	"fmt"
+	"lectio-scraper/utils"
 	"log"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
 	"os"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -80,9 +80,9 @@ func (lectio *Lectio) Initialise(loginInfo *LectioLoginInfo) {
 
 }
 
-func (*Lectio) GetSchedule(c *colly.Collector, week uint) []Module {
+func (*Lectio) GetSchedule(c *colly.Collector, week uint) map[string]Module {
 	wg := sync.WaitGroup{}
-	modules := []Module{}
+	modules := make(map[string]Module)
 	c.OnHTML("a.s2skemabrik.s2brik", func(e *colly.HTMLElement) {
 		wg.Add(1)
 		defer wg.Done()
@@ -165,7 +165,8 @@ func (*Lectio) GetSchedule(c *colly.Collector, week uint) []Module {
 			Homework:  homework,
 			Status:    status,
 		}
-		modules = append(modules, module)
+
+		modules[id] = module
 	})
 
 	weekString := fmt.Sprintf("%v%v", week, time.Now().Year())
@@ -173,19 +174,17 @@ func (*Lectio) GetSchedule(c *colly.Collector, week uint) []Module {
 	c.Visit(scheduleUrl)
 
 	wg.Wait()
-	sort.Slice(modules, func(i, j int) bool {
-		return modules[i].StartDate.Before(modules[j].StartDate)
-	})
 	return modules
 }
 
-func (lectio *Lectio) GetScheduleWeeks(weekCount int, toJSON bool) []Module {
-	modules := []Module{}
+func (lectio *Lectio) GetScheduleWeeks(weekCount int, toJSON bool) map[string]Module {
+	modules := make(map[string]Module)
 
 	for i := 0; i < weekCount; i++ {
 		_, week := time.Now().ISOWeek()
 		weekModules := lectio.GetSchedule(lectio.Collector, uint(week+i))
-		modules = append(modules, weekModules...)
+
+		modules = utils.MergeMaps(modules, weekModules)
 	}
 
 	if toJSON && len(modules) > 0 {
@@ -203,7 +202,6 @@ func (lectio *Lectio) GetScheduleWeeks(weekCount int, toJSON bool) []Module {
 }
 
 func GetToken(loginUrl string, client *http.Client) AuthenticityToken {
-
 	response, err := client.Get(loginUrl)
 
 	if err != nil {

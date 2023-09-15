@@ -98,7 +98,7 @@ func saveToken(path string, token *oauth2.Token) {
 	json.NewEncoder(f).Encode(token)
 }
 
-func (googleCalendar *GoogleCalendar) AddModules(modules []lectio.Module) {
+func (googleCalendar *GoogleCalendar) AddModules(modules map[string]lectio.Module) {
 	startTime := time.Now()
 	defer log.Printf("Added modules to Google Calendar in %d", time.Since(startTime).Milliseconds())
 	for _, module := range modules {
@@ -114,7 +114,6 @@ func (googleCalendar *GoogleCalendar) AddModules(modules []lectio.Module) {
 
 		}
 		moduleEvent := &calendar.Event{
-
 			Start:       start,
 			End:         end,
 			Summary:     module.Title,
@@ -135,7 +134,14 @@ func (googleCalendar *GoogleCalendar) AddModules(modules []lectio.Module) {
 
 }
 
-func (googleCalendar *GoogleCalendar) GetModules(week int) []lectio.Module {
+func (googleCalendar *GoogleCalendar) GetModules(week int) map[string]lectio.Module {
 	// events, err := googleCalendar.Service.Events.Get(googleCalendar.CalendarInfo.CalendarID)
-	return []lectio.Module{}
+	return make(map[string]lectio.Module)
+}
+
+func (GoogleCalendar *GoogleCalendar) CompareSchemes(l *lectio.Lectio) map[string]lectio.Module {
+
+	// l.GetScheduleWeeks()
+
+	return make(map[string]lectio.Module)
 }
