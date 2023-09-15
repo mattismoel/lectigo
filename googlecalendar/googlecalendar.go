@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"lectio-scraper/lectio"
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -14,12 +16,17 @@ import (
 	"google.golang.org/api/option"
 )
 
-type GoogleCalendar struct {
-	Client  *http.Client
-	Service *calendar.Service
+type CalendarInfo struct {
+	CalendarID string `json:"calendarID"`
 }
 
-func (googleCalendar *GoogleCalendar) Initialise() {
+type GoogleCalendar struct {
+	Client       *http.Client
+	Service      *calendar.Service
+	CalendarInfo *CalendarInfo
+}
+
+func (googleCalendar *GoogleCalendar) Initialise(CalendarInfo *CalendarInfo) {
 	ctx := context.Background()
 	bytes, err := os.ReadFile("credentials.json")
 	if err != nil {
@@ -31,7 +38,7 @@ func (googleCalendar *GoogleCalendar) Initialise() {
 		log.Fatalf("Unable to parse client secret file to config: %v", err)
 	}
 	googleCalendar.Client = GetClient(config)
-
+	googleCalendar.CalendarInfo = CalendarInfo
 	googleCalendar.Service, err = calendar.NewService(ctx, option.WithHTTPClient(googleCalendar.Client))
 	if err != nil {
 		log.Fatalf("Could not get Calendar client: %v", err)
@@ -89,4 +96,46 @@ func saveToken(path string, token *oauth2.Token) {
 	}
 	defer f.Close()
 	json.NewEncoder(f).Encode(token)
+}
+
+func (googleCalendar *GoogleCalendar) AddModules(modules []lectio.Module) {
+	startTime := time.Now()
+	defer log.Printf("Added modules to Google Calendar in %d", time.Since(startTime).Milliseconds())
+	for _, module := range modules {
+		start := &calendar.EventDateTime{DateTime: module.StartDate.Format(time.RFC3339), TimeZone: "Europe/Copenhagen"}
+		end := &calendar.EventDateTime{DateTime: module.EndDate.Format(time.RFC3339), TimeZone: "Europe/Copenhagen"}
+
+		calendarColorID := ""
+		switch module.Status {
+		case "aflyst":
+			calendarColorID = "4"
+		case "ændret":
+			calendarColorID = "2"
+
+		}
+		moduleEvent := &calendar.Event{
+
+			Start:       start,
+			End:         end,
+			Summary:     module.Title,
+			Location:    module.Room,
+			Description: fmt.Sprintf("Lærer: %s\n%s\n", module.Teacher, module.Homework),
+			ColorId:     calendarColorID,
+		}
+		_, err := time.Parse(time.RFC3339, moduleEvent.Start.DateTime)
+		if err != nil {
+			log.Fatalf("Could not parse date: %v\n", err)
+		}
+		event, err := googleCalendar.Service.Events.Insert(googleCalendar.CalendarInfo.CalendarID, moduleEvent).Do()
+		if err != nil {
+			log.Fatalf("Unable to create event. %v\n", err)
+		}
+		fmt.Printf("Created event: %s\n", event.HtmlLink)
+	}
+
+}
+
+func (googleCalendar *GoogleCalendar) GetModules(week int) []lectio.Module {
+	// events, err := googleCalendar.Service.Events.Get(googleCalendar.CalendarInfo.CalendarID)
+	return []lectio.Module{}
 }

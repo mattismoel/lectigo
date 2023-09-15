@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/cookiejar"
+	"net/url"
 	"os"
 	"sort"
 	"strings"
@@ -31,6 +32,7 @@ type LectioLoginInfo struct {
 }
 
 type Module struct {
+	Id        string    `json:"id"`        // The ID of the module
 	Title     string    `json:"title"`     // Title of the module (eg. 3a Dansk)
 	StartDate time.Time `json:"startDate"` // The start date of the module. This includes the date as well as the time of start (eg. 09:55)
 	EndDate   time.Time `json:"endDate"`   // The end date of the module. This includes the date as well as the time of end (eg. 11:25)
@@ -88,7 +90,22 @@ func (*Lectio) GetSchedule(c *colly.Collector, week uint) []Module {
 
 		lines := strings.Split(addInfo, "\n")
 
-		var title, teacher, room, homework string
+		var id, title, teacher, room, homework string
+
+		// Get ID of the module
+		idUrl, _ := url.Parse(e.Attr("href"))
+		urlParams, _ := url.ParseQuery(idUrl.RawQuery)
+		if strings.Contains(idUrl.RawQuery, "absid") {
+			id = urlParams.Get("absid")
+		}
+		if strings.Contains(idUrl.RawQuery, "aftaleid") {
+			id = urlParams.Get("aftaleid")
+			e.ForEach("div.s2skemabrikcontent > span", func(i int, e *colly.HTMLElement) {
+				title = e.Text
+			})
+
+		}
+
 		var status = "uændret"
 		var startDate, endDate time.Time
 		location, err := time.LoadLocation("Europe/Copenhagen")
@@ -103,7 +120,7 @@ func (*Lectio) GetSchedule(c *colly.Collector, week uint) []Module {
 		}
 
 		for i, line := range lines {
-			if strings.Contains(line, "Hold: ") {
+			if strings.Contains(line, "Hold: ") && title == "" {
 				_, title, _ = strings.Cut(line, ": ")
 				title = strings.TrimSpace(title)
 				continue
@@ -139,6 +156,7 @@ func (*Lectio) GetSchedule(c *colly.Collector, week uint) []Module {
 
 		}
 		module := Module{
+			Id:        id,
 			Title:     title,
 			StartDate: startDate,
 			EndDate:   endDate,
