@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"lectio-scraper/googlecalendar"
 	"lectio-scraper/utils"
 	"log"
 	"net/http"
@@ -14,23 +16,27 @@ import (
 	"time"
 
 	"github.com/gocolly/colly"
+	"golang.org/x/oauth2/google"
+	"google.golang.org/api/calendar/v3"
+	"google.golang.org/api/option"
 )
 
 type Module struct {
 	Title     string    `json:"title"`     // Title of the module (eg. 3a Dansk)
-	StartDate time.Time `json:"startDate"` // The start date of the module. This includes the date aswell as the time of start (eg. 09:55)
-	EndDate   time.Time `json:"endDate"`   // The end date of the module. This includes the date aswell as the time of end (eg. 11:25)
+	StartDate time.Time `json:"startDate"` // The start date of the module. This includes the date as well as the time of start (eg. 09:55)
+	EndDate   time.Time `json:"endDate"`   // The end date of the module. This includes the date as well as the time of end (eg. 11:25)
 	Room      string    `json:"room"`      // The room of the module (eg. 22)
 	Teacher   string    `json:"teacher"`   // The teacher of the class
 	Homework  string    `json:"homework"`  // Homework for the module
 	Status    string    `json:"status"`    // The status of the module (eg. "Ændret" or "Aflyst")
 }
 
-var userName string = "" // Username of user
-var password string = "" // Password of user
-var schoolID string = "" // School ID of user. This can be found on the logged on homepage of Lectio (eg. www.lectio.dk/lectio/<id>/SkemaNy.aspx)
+var userName string = "matt1894"        // Username of user
+var password string = "MulerneMoel0102" // Password of user
+var schoolID string = "143"             // School ID of user. This can be found on the logged on homepage of Lectio (eg. www.lectio.dk/lectio/<id>/SkemaNy.aspx)
 
 func main() {
+	startTime := time.Now()
 	c := colly.NewCollector(colly.AllowedDomains("lectio.dk", "www.lectio.dk"))
 	loginUrl := fmt.Sprintf("https://www.lectio.dk/lectio/%s/login.aspx", schoolID)
 	jar, _ := cookiejar.New(nil)
@@ -60,10 +66,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("Could not visit %s. %s", "https://www.lectio.dk/lectio/143/forside.aspx", err)
 	}
-
+	modules := getScheduleWeeks(c, 2, false)
+	AddToGoogleCalendar(modules)
 	for _, module := range getScheduleWeeks(c, 2, true) {
 		fmt.Println(module)
 	}
+	fmt.Printf("Ran in %v", time.Since(startTime))
 }
 
 func getScheduleWeeks(c *colly.Collector, weekCount int, toJSON bool) []Module {
@@ -160,4 +168,44 @@ func getSchedule(c *colly.Collector, week int) []Module {
 		return modules[i].StartDate.Before(modules[j].StartDate)
 	})
 	return modules
+}
+
+func AddToGoogleCalendar(modules []Module) {
+	ctx := context.Background()
+	bytes, err := os.ReadFile("credentials.json")
+	if err != nil {
+		log.Fatalf("Could not read client secret file: %v", err)
+	}
+
+	config, err := google.ConfigFromJSON(bytes, calendar.CalendarEventsScope)
+	if err != nil {
+		log.Fatalf("Unable to parse client secret file to config: %v", err)
+	}
+	client := googlecalendar.GetClient(config)
+
+	_, err = calendar.NewService(ctx, option.WithHTTPClient(client))
+	if err != nil {
+		log.Fatalf("Could not get Calendar client: %v", err)
+	}
+
+	for _, module := range modules {
+		start := &calendar.EventDateTime{DateTime: module.StartDate.Format(time.RFC3339)}
+		end := &calendar.EventDateTime{DateTime: module.EndDate.Format(time.RFC3339)}
+		fmt.Println(start.DateTime, end.DateTime)
+		moduleEvent := &calendar.Event{
+			Start:       start,
+			End:         end,
+			Summary:     module.Title,
+			Location:    fmt.Sprintf("Lokale: %s", module.Room),
+			Description: fmt.Sprintf("Lærer: %s\n%s\n", module.Teacher, module.Homework),
+		}
+		fmt.Printf("%s - %v", moduleEvent.Summary, moduleEvent.Start.DateTime)
+		// event, err := service.Events.Insert("primary", moduleEvent).Do()
+		// if err != nil {
+		// 	log.Fatalf("Unable to create event. %v\n", err)
+		// }
+		// fmt.Printf("Created event: %s\n", event.HtmlLink)
+	}
+
+	fmt.Println("Added modules to Calendar")
 }
