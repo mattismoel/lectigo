@@ -31,9 +31,9 @@ type Module struct {
 	Status    string    `json:"status"`    // The status of the module (eg. "Ændret" or "Aflyst")
 }
 
-var userName string = "matt1894"        // Username of user
-var password string = "MulerneMoel0102" // Password of user
-var schoolID string = "143"             // School ID of user. This can be found on the logged on homepage of Lectio (eg. www.lectio.dk/lectio/<id>/SkemaNy.aspx)
+var userName string = "" // Username of user
+var password string = "" // Password of user
+var schoolID string = "" // School ID of user. This can be found on the logged on homepage of Lectio (eg. www.lectio.dk/lectio/<id>/SkemaNy.aspx)
 
 func main() {
 	startTime := time.Now()
@@ -67,7 +67,7 @@ func main() {
 		log.Fatalf("Could not visit %s. %s", "https://www.lectio.dk/lectio/143/forside.aspx", err)
 	}
 	modules := getScheduleWeeks(c, 2, false)
-	AddToGoogleCalendar(modules, "fdq48gi0ao2hn7udbmhg720pgo@group.calendar.google.com")
+	AddToGoogleCalendar(modules, "")
 	for _, module := range getScheduleWeeks(c, 1, true) {
 		fmt.Println(module)
 	}
