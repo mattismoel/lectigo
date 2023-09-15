@@ -68,7 +68,7 @@ func main() {
 	}
 	modules := getScheduleWeeks(c, 2, false)
 	AddToGoogleCalendar(modules)
-	for _, module := range getScheduleWeeks(c, 2, true) {
+	for _, module := range getScheduleWeeks(c, 1, true) {
 		fmt.Println(module)
 	}
 	fmt.Printf("Ran in %v", time.Since(startTime))
@@ -110,7 +110,10 @@ func getSchedule(c *colly.Collector, week int) []Module {
 
 		var title, teacher, room, status string
 		var startDate, endDate time.Time
-
+		location, err := time.LoadLocation("Europe/Copenhagen")
+		if err != nil {
+			log.Fatalf("Could not load location: %s\n", err)
+		}
 		for i, line := range lines {
 			if strings.Contains(line, "Hold: ") {
 				_, title, _ = strings.Cut(line, ": ")
@@ -134,13 +137,17 @@ func getSchedule(c *colly.Collector, week int) []Module {
 			if strings.Contains(line, "til") {
 				parts := strings.Split(line, "til")
 				if len(parts) == 2 {
-					startDateTime, err := time.Parse("02/1-2006 15:04", strings.TrimSpace(parts[0]))
+					startDateTime, err := time.ParseInLocation("02/1-2006 15:04", strings.TrimSpace(parts[0]), location)
+					// fmt.Println(startDateTime)
 					if err == nil {
 						startDate = startDateTime
+						fmt.Println("START TIME", startDate)
+
 					}
-					endDateTime, err := time.Parse("15:04", strings.TrimSpace(parts[1]))
+					endDateTime, err := time.ParseInLocation("15:04", strings.TrimSpace(parts[1]), location)
 					if err == nil {
-						endDate = time.Date(startDateTime.Year(), startDate.Month(), startDate.Day(), endDateTime.Hour(), endDateTime.Minute(), 0, 0, time.UTC)
+						fmt.Println("END TIME", endDateTime)
+						endDate = time.Date(startDate.Year(), startDate.Month(), startDate.Day(), endDateTime.Hour(), endDateTime.Minute(), 0, 0, location)
 					}
 				}
 			}
@@ -183,15 +190,15 @@ func AddToGoogleCalendar(modules []Module) {
 	}
 	client := googlecalendar.GetClient(config)
 
-	_, err = calendar.NewService(ctx, option.WithHTTPClient(client))
+	service, err := calendar.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
 		log.Fatalf("Could not get Calendar client: %v", err)
 	}
 
 	for _, module := range modules {
-		start := &calendar.EventDateTime{DateTime: module.StartDate.Format(time.RFC3339)}
-		end := &calendar.EventDateTime{DateTime: module.EndDate.Format(time.RFC3339)}
-		fmt.Println(start.DateTime, end.DateTime)
+		start := &calendar.EventDateTime{DateTime: module.StartDate.Format(time.RFC3339), TimeZone: "Europe/Copenhagen"}
+		end := &calendar.EventDateTime{DateTime: module.EndDate.Format(time.RFC3339), TimeZone: "Europe/Copenhagen"}
+		fmt.Println("DATE!!!!!", start.DateTime, end.DateTime)
 		moduleEvent := &calendar.Event{
 			Start:       start,
 			End:         end,
@@ -199,11 +206,16 @@ func AddToGoogleCalendar(modules []Module) {
 			Location:    fmt.Sprintf("Lokale: %s", module.Room),
 			Description: fmt.Sprintf("Lærer: %s\n%s\n", module.Teacher, module.Homework),
 		}
-		fmt.Printf("%s - %v", moduleEvent.Summary, moduleEvent.Start.DateTime)
-		// event, err := service.Events.Insert("primary", moduleEvent).Do()
-		// if err != nil {
-		// 	log.Fatalf("Unable to create event. %v\n", err)
-		// }
+		// fmt.Printf("%v\n\n", moduleEvent)
+		_, err := time.Parse(time.RFC3339, moduleEvent.Start.DateTime)
+		if err != nil {
+			log.Fatalf("Could not parse date: %v\n", err)
+		}
+		// fmt.Printf("%s - %v:%v", moduleEvent.Summary, timeString.Hour(), timeString.Minute())
+		_, err = service.Events.Insert("primary", moduleEvent).Do()
+		if err != nil {
+			log.Fatalf("Unable to create event. %v\n", err)
+		}
 		// fmt.Printf("Created event: %s\n", event.HtmlLink)
 	}
 
