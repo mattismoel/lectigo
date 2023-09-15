@@ -67,7 +67,7 @@ func main() {
 		log.Fatalf("Could not visit %s. %s", "https://www.lectio.dk/lectio/143/forside.aspx", err)
 	}
 	modules := getScheduleWeeks(c, 2, false)
-	AddToGoogleCalendar(modules)
+	AddToGoogleCalendar(modules, "fdq48gi0ao2hn7udbmhg720pgo@group.calendar.google.com")
 	for _, module := range getScheduleWeeks(c, 1, true) {
 		fmt.Println(module)
 	}
@@ -108,12 +108,20 @@ func getSchedule(c *colly.Collector, week int) []Module {
 
 		lines := strings.Split(addInfo, "\n")
 
-		var title, teacher, room, status string
+		var title, teacher, room, homework string
+		var status = "uændret"
 		var startDate, endDate time.Time
 		location, err := time.LoadLocation("Europe/Copenhagen")
 		if err != nil {
 			log.Fatalf("Could not load location: %s\n", err)
 		}
+
+		if strings.Contains(addInfo, "Lektier:") {
+			_, homework, _ = strings.Cut(addInfo, "Lektier:")
+			homework = strings.TrimSpace(homework)
+			homework = strings.TrimSuffix(homework, "[...]")
+		}
+
 		for i, line := range lines {
 			if strings.Contains(line, "Hold: ") {
 				_, title, _ = strings.Cut(line, ": ")
@@ -130,8 +138,10 @@ func getSchedule(c *colly.Collector, week int) []Module {
 				room = strings.TrimSpace(room)
 				continue
 			}
+
 			if i == 0 && (strings.Contains(line, "Ændret!") || strings.Contains(line, "Aflyst!")) {
-				status = strings.TrimSpace(line)
+				status = strings.ToLower(strings.TrimSuffix(strings.TrimSpace(line), "!"))
+				fmt.Println(status)
 			}
 
 			if strings.Contains(line, "til") {
@@ -153,14 +163,13 @@ func getSchedule(c *colly.Collector, week int) []Module {
 			}
 
 		}
-
 		module := Module{
 			Title:     title,
 			StartDate: startDate,
 			EndDate:   endDate,
 			Room:      room,
 			Teacher:   teacher,
-			Homework:  "",
+			Homework:  homework,
 			Status:    status,
 		}
 		modules = append(modules, module)
@@ -177,7 +186,7 @@ func getSchedule(c *colly.Collector, week int) []Module {
 	return modules
 }
 
-func AddToGoogleCalendar(modules []Module) {
+func AddToGoogleCalendar(modules []Module, calendarID string) {
 	ctx := context.Background()
 	bytes, err := os.ReadFile("credentials.json")
 	if err != nil {
@@ -198,25 +207,32 @@ func AddToGoogleCalendar(modules []Module) {
 	for _, module := range modules {
 		start := &calendar.EventDateTime{DateTime: module.StartDate.Format(time.RFC3339), TimeZone: "Europe/Copenhagen"}
 		end := &calendar.EventDateTime{DateTime: module.EndDate.Format(time.RFC3339), TimeZone: "Europe/Copenhagen"}
-		fmt.Println("DATE!!!!!", start.DateTime, end.DateTime)
+
+		calendarColorID := ""
+		switch module.Status {
+		case "aflyst":
+			calendarColorID = "4"
+		case "ændret":
+			calendarColorID = "2"
+
+		}
 		moduleEvent := &calendar.Event{
 			Start:       start,
 			End:         end,
 			Summary:     module.Title,
-			Location:    fmt.Sprintf("Lokale: %s", module.Room),
+			Location:    module.Room,
 			Description: fmt.Sprintf("Lærer: %s\n%s\n", module.Teacher, module.Homework),
+			ColorId:     calendarColorID,
 		}
-		// fmt.Printf("%v\n\n", moduleEvent)
 		_, err := time.Parse(time.RFC3339, moduleEvent.Start.DateTime)
 		if err != nil {
 			log.Fatalf("Could not parse date: %v\n", err)
 		}
-		// fmt.Printf("%s - %v:%v", moduleEvent.Summary, timeString.Hour(), timeString.Minute())
-		_, err = service.Events.Insert("primary", moduleEvent).Do()
+		event, err := service.Events.Insert(calendarID, moduleEvent).Do()
 		if err != nil {
 			log.Fatalf("Unable to create event. %v\n", err)
 		}
-		// fmt.Printf("Created event: %s\n", event.HtmlLink)
+		fmt.Printf("Created event: %s\n", event.HtmlLink)
 	}
 
 	fmt.Println("Added modules to Calendar")
