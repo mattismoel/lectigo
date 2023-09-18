@@ -2,3 +2,6 @@ credentials.json
 token.json
 lectioSecrets.json
 googleSecrets.json
+googleModules.json
+lectioModules.json
+schedule.json
