@@ -2,20 +2,18 @@ package main
 
 import (
 	"encoding/json"
-	"lectio-scraper/googlecalendar"
-	"lectio-scraper/lectio"
 	"log"
 	"os"
 )
 
 type SecretsConfig struct {
-	UserInfo                    lectio.LectioLoginInfo
-	GoogleCalendarConfiguration googlecalendar.CalendarInfo
+	UserInfo                    LectioLoginInfo
+	GoogleCalendarConfiguration CalendarInfo
 }
 
 // The login information of the user. This should be stored in a "secrets.json" file, and should have the following variables: username, password, schoolID, calendarID
-var lectioLoginInfo lectio.LectioLoginInfo
-var googleCalendarConfig googlecalendar.CalendarInfo
+var lectioLoginInfo LectioLoginInfo
+var googleCalendarConfig CalendarInfo
 
 func main() {
 
@@ -39,11 +37,13 @@ func main() {
 		panic(err)
 	}
 
-	lectio := lectio.Lectio{}
-	lectio.Initialise(&lectioLoginInfo)
-	googleCalendar := googlecalendar.GoogleCalendar{}
-	googleCalendar.Initialise(&googleCalendarConfig)
+	l := NewLectio(&lectioLoginInfo)
+	// l.Initialise(&lectioLoginInfo)
+	googleCalendar := NewGoogleCalendar(&googleCalendarConfig)
+	// googleCalendar.Initialise(&googleCalendarConfig)
 
-	modules := lectio.GetScheduleWeeks(1, true)
-	googleCalendar.AddModules(modules)
+	lectioModules := l.GetScheduleWeeks(1)
+	googleModules := googleCalendar.GetModules(1)
+
+	googleCalendar.AddModules(lectioModules, googleModules)
 }

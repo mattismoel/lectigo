@@ -1,20 +1,20 @@
-package lectio
+package main
 
 import (
 	"encoding/json"
 	"fmt"
-	"lectio-scraper/utils"
 	"log"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gocolly/colly"
+	"golang.org/x/exp/maps"
+	"google.golang.org/api/calendar/v3"
 )
 
 type App struct {
@@ -48,20 +48,20 @@ type Lectio struct {
 	LoginInfo *LectioLoginInfo
 }
 
-func (lectio *Lectio) Initialise(loginInfo *LectioLoginInfo) {
+func NewLectio(loginInfo *LectioLoginInfo) Lectio {
 	fmt.Println(loginInfo)
-	lectio.LoginInfo = loginInfo
-	loginUrl := fmt.Sprintf("https://www.lectio.dk/lectio/%s/login.aspx", lectio.LoginInfo.SchoolID)
+	// lectio.LoginInfo = loginInfo
+	loginUrl := fmt.Sprintf("https://www.lectio.dk/lectio/%s/login.aspx", loginInfo.SchoolID)
 	jar, _ := cookiejar.New(nil)
-	lectio.Client = &http.Client{Jar: jar}
-	lectio.Collector = colly.NewCollector(colly.AllowedDomains("lectio.dk", "www.lectio.dk"))
+	client := &http.Client{Jar: jar}
+	collector := colly.NewCollector(colly.AllowedDomains("lectio.dk", "www.lectio.dk"))
 
-	authToken := GetToken(loginUrl, lectio.Client)
+	authToken := GetToken(loginUrl, client)
 
 	// Attempts to log the user in with the given login information
-	err := lectio.Collector.Post(loginUrl, map[string]string{
-		"m$Content$username": lectio.LoginInfo.Username,
-		"m$Content$password": lectio.LoginInfo.Password,
+	err := collector.Post(loginUrl, map[string]string{
+		"m$Content$username": loginInfo.Username,
+		"m$Content$password": loginInfo.Password,
 		"__EVENTVALIDATION":  authToken.Token,
 		"__EVENTTARGET":      "m$Content$submitbtn2",
 		"__EVENTARGUMENT":    "",
@@ -74,18 +74,28 @@ func (lectio *Lectio) Initialise(loginInfo *LectioLoginInfo) {
 	}
 
 	// Function is fired when a new page is loaded
-	lectio.Collector.OnResponse(func(r *colly.Response) {
+	collector.OnResponse(func(r *colly.Response) {
 		log.Println("response received", r.StatusCode, r.Request.URL)
 	})
 
+	return Lectio{
+		Client:    client,
+		Collector: collector,
+		LoginInfo: loginInfo,
+	}
 }
 
-func (*Lectio) GetSchedule(c *colly.Collector, week uint) map[string]Module {
-	wg := sync.WaitGroup{}
+func (*Lectio) GetSchedule(c *colly.Collector, week int) map[string]Module {
+	// var wg sync.WaitGroup
+	startTime := time.Now()
+	defer fmt.Printf("Took %v\n", time.Since(startTime))
 	modules := make(map[string]Module)
+	// mu := sync.Mutex{}
+
 	c.OnHTML("a.s2skemabrik.s2brik", func(e *colly.HTMLElement) {
-		wg.Add(1)
-		defer wg.Done()
+		// wg.Add(1)
+		// go func() {
+
 		addInfo := e.Attr("data-additionalinfo")
 
 		lines := strings.Split(addInfo, "\n")
@@ -172,32 +182,22 @@ func (*Lectio) GetSchedule(c *colly.Collector, week uint) map[string]Module {
 	weekString := fmt.Sprintf("%v%v", week, time.Now().Year())
 	scheduleUrl := fmt.Sprintf("https://www.lectio.dk/lectio/143/SkemaNy.aspx?week=%v", weekString)
 	c.Visit(scheduleUrl)
-
-	wg.Wait()
+	// fmt.Println(modules)
 	return modules
+
 }
 
-func (lectio *Lectio) GetScheduleWeeks(weekCount int, toJSON bool) map[string]Module {
+func (l *Lectio) GetScheduleWeeks(weekCount int) map[string]Module {
 	modules := make(map[string]Module)
+	_, week := time.Now().ISOWeek()
 
 	for i := 0; i < weekCount; i++ {
-		_, week := time.Now().ISOWeek()
-		weekModules := lectio.GetSchedule(lectio.Collector, uint(week+i))
-
-		modules = utils.MergeMaps(modules, weekModules)
+		weekModules := l.GetSchedule(l.Collector, week+i)
+		maps.Copy(modules, weekModules)
 	}
 
-	if toJSON && len(modules) > 0 {
-		b, err := json.Marshal(modules)
-		if err != nil {
-			log.Fatal("Could not marshal JSON.", err)
-		}
-
-		err = os.WriteFile("schedule.json", b, 0644)
-		if err != nil {
-			log.Fatal("Could not write to file", err)
-		}
-	}
+	// modules := l.GetSchedule(l.Collector, week)
+	// wg.Wait()
 	return modules
 }
 
@@ -219,4 +219,40 @@ func GetToken(loginUrl string, client *http.Client) AuthenticityToken {
 
 	authenticityToken := AuthenticityToken{Token: token}
 	return authenticityToken
+}
+
+func EventToModule(event *calendar.Event) Module {
+	var teacher, homework, status string
+	start, err := time.Parse(time.RFC3339, event.Start.DateTime)
+	if err != nil {
+		log.Fatalf("Could not parse date: %v\n", err)
+	}
+
+	end, err := time.Parse(time.RFC3339, event.End.DateTime)
+	if err != nil {
+		log.Fatalf("Could not parse end date: %v\n", err)
+	}
+	return Module{
+		Id:        event.Id,
+		Title:     event.Summary,
+		Room:      event.Location,
+		StartDate: start,
+		EndDate:   end,
+		Teacher:   teacher,
+		Homework:  homework,
+		Status:    status,
+	}
+}
+
+func ModulesToJSON(modules map[string]Module, filename string) {
+	filename, _ = strings.CutSuffix(filename, ".json")
+	b, err := json.Marshal(modules)
+	if err != nil {
+		log.Fatal("Could not marshal JSON.", err)
+	}
+
+	err = os.WriteFile(fmt.Sprintf("%s.json", filename), b, 0644)
+	if err != nil {
+		log.Fatal("Could not write to file", err)
+	}
 }
