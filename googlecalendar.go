@@ -28,6 +28,8 @@ type GoogleCalendar struct {
 }
 
 func NewGoogleCalendar(CalendarInfo *CalendarInfo) *GoogleCalendar {
+
+	log.Printf("Started server on localhost:3333\n")
 	ctx := context.Background()
 	bytes, err := os.ReadFile("credentials.json")
 	if err != nil {
