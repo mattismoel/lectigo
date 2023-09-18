@@ -19,7 +19,7 @@ $ go mod tidy
 
 ## Building the project
 
-The repository already contains an executable. If you wish to rebuild it (might be needed for Windows devices), it can be done with the following command:
+The repository already contains an executable `go-lectio-scraper`. If you wish to rebuild it (might be needed for Windows devices), it can be done with the following command:
 ```bash
 $ go build .
 ```
