@@ -44,8 +44,16 @@ Clearing all Lectio modules from Google Calendar
 $ ./go-lectio-scraper --command=clear
 ```
 
+## Command line flags
 
-## Setting up login details
+| Flag      | Purpose                                                                                                                         |
+|-----------|---------------------------------------------------------------------------------------------------------------------------------|
+| `command` | Chooses the command to execute. Can be set to `sync` or `clear`. Defaults to `command=sync`                                     | 
+| `weeks`   | Sets the amount of weeks to sync the Calendar. Only affects `command=sync`. Defaults to `1` (getting the schedule of this week) |
+
+> For examples see [Examples](https://github.com/mattismoel/go-lectio-scraper#examples)
+
+# Setting up login details
 
 ### Google OAuth authentication
 
@@ -78,3 +86,4 @@ If you do not wish to use the default calendar, a `googleSecrets.json` file shou
 ```
 
 The list of calendars that you own can be found at [Google Calendar API's documentation CalendarList:list()](https://developers.google.com/calendar/api/v3/reference/calendarList/list). In the sidebar you should see an `Execute` button. The resulting JSON is a list of your Google calendars. Find the desired calendar and copy the value of `"id"` and paste it in the `googleSecrets.json` file. Everything should be ready to go.
+
