@@ -249,8 +249,10 @@ func (c *GoogleCalendar) GetModules(weekCount int) map[string]Module {
 	wg := sync.WaitGroup{}
 	mu := sync.RWMutex{}
 
+	startDate := GetMonday()
+	endDate := GetMonday().AddDate(0, 0, 7*weekCount)
+	req := c.Service.Events.List(c.CalendarInfo.CalendarID).TimeMin(startDate.Format(time.RFC3339)).TimeMax(endDate.Format(time.RFC3339))
 	for {
-		req := c.Service.Events.List(c.CalendarInfo.CalendarID)
 		if pageToken != "" {
 			req.PageToken(pageToken)
 		}

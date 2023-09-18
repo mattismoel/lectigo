@@ -48,7 +48,7 @@ type Lectio struct {
 	//LoginInfo *LectioLoginInfo
 }
 
-func NewLectio(loginInfo *LectioLoginInfo) Lectio {
+func NewLectio(loginInfo *LectioLoginInfo) *Lectio {
 	fmt.Println(loginInfo)
 	// lectio.LoginInfo = loginInfo
 	loginUrl := fmt.Sprintf("https://www.lectio.dk/lectio/%s/login.aspx", loginInfo.SchoolID)
@@ -78,7 +78,7 @@ func NewLectio(loginInfo *LectioLoginInfo) Lectio {
 		log.Println("response received", r.StatusCode, r.Request.URL)
 	})
 
-	return Lectio{
+	return &Lectio{
 		Client:    client,
 		Collector: collector,
 		//LoginInfo: loginInfo,
@@ -196,8 +196,6 @@ func (l *Lectio) GetScheduleWeeks(weekCount int) map[string]Module {
 		maps.Copy(modules, weekModules)
 	}
 
-	// modules := l.GetSchedule(l.Collector, week)
-	// wg.Wait()
 	return modules
 }
 

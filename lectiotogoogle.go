@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"log"
 	"os"
 )
@@ -37,10 +38,26 @@ func main() {
 		panic(err)
 	}
 
-	l := NewLectio(&lectioLoginInfo)
-	c := NewGoogleCalendar(&googleCalendarConfig)
+	var l *Lectio
+	var c *GoogleCalendar
 
-	lectioModules := l.GetScheduleWeeks(1)         // Gets the modules from the Lectio schedule
-	googleModules := c.GetModules(1)               // Gets the modules present in Google Calendar
-	c.UpdateCalendar(lectioModules, googleModules) // Updates and deletes events that are missing in Google Calendar
+	command := flag.String("command", "sync", "what command should be executed")
+	weekCount := flag.Int("weeks", 2, "define amount of weeks to sync Google Calendar")
+
+	flag.Parse()
+
+	// Checks for the provided commands and creates instances of Lectio and GoogleCalendar only if nescessary
+	switch *command {
+	case "sync":
+		log.Printf("Syncing Google Calendar for the next %v weeks...\n", *weekCount)
+		l = NewLectio(&lectioLoginInfo)                 // Creates a new Lectio client
+		c = NewGoogleCalendar(&googleCalendarConfig)    // Creates a new Google Calendar client
+		lectioModules := l.GetScheduleWeeks(*weekCount) // Gets the modules from the Lectio schedule
+		googleModules := c.GetModules(*weekCount)       // Gets the modules present in Google Calendar
+		c.UpdateCalendar(lectioModules, googleModules)  // Updates and deletes events that are missing in Google Calendar
+	case "clear":
+		log.Printf("Clearing Google Calendar...\n")
+		c = NewGoogleCalendar(&googleCalendarConfig) // Creates a new Google Calendar client
+		c.Clear()
+	}
 }
