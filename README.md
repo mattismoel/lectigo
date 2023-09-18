@@ -1,6 +1,6 @@
-# Lectio scraper
+# What is this?
 
-This project is a web scraper for the Danish gymnasium site Lectio. With this, you are able to extract the schedule from the main site and have it sync with your Google Calendar.
+This project is a web scraper for the Danish gymnasium site [Lectio](https://lectio.dk) by MaCom A/S. With this, you are able to extract the schedule from the main site and have it sync with your Google Calendar.
 
 
 # How to use
