@@ -86,7 +86,6 @@ func NewLectio(loginInfo *LectioLoginInfo) Lectio {
 }
 
 func (*Lectio) GetSchedule(c *colly.Collector, week int) map[string]Module {
-	var err error
 	startTime := time.Now()
 	defer fmt.Printf("GetSchedule took %v\n", time.Since(startTime))
 	modules := make(map[string]Module)
@@ -163,12 +162,8 @@ func (*Lectio) GetSchedule(c *colly.Collector, week int) map[string]Module {
 			// Checks if the line is the one that contains the start and end date of the module.
 			// The variables will only be assigned as long as the start and end date have not been initialised yet
 			if strings.Contains(line, "til") && startDate.IsZero() && endDate.IsZero() {
-				startDate, endDate, err = ConvertLectioDate(line)
-				if err != nil {
-					log.Printf("Could not convert string to date: %v\n", err)
-				}
+				startDate, endDate, _ = ConvertLectioDate(line)
 				continue
-
 			}
 
 		}
@@ -190,7 +185,6 @@ func (*Lectio) GetSchedule(c *colly.Collector, week int) map[string]Module {
 	scheduleUrl := fmt.Sprintf("https://www.lectio.dk/lectio/143/SkemaNy.aspx?week=%v", weekString)
 	c.Visit(scheduleUrl)
 	return modules
-
 }
 
 func (l *Lectio) GetScheduleWeeks(weekCount int) map[string]Module {

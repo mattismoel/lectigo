@@ -38,9 +38,9 @@ func main() {
 	}
 
 	l := NewLectio(&lectioLoginInfo)
-	googleCalendar := NewGoogleCalendar(&googleCalendarConfig)
-	lectioModules := l.GetScheduleWeeks(2)
+	c := NewGoogleCalendar(&googleCalendarConfig)
 
-	// googleCalendar.Clear()
-	googleCalendar.AddModules(lectioModules)
+	lectioModules := l.GetScheduleWeeks(1)         // Gets the modules from the Lectio schedule
+	googleModules := c.GetModules(1)               // Gets the modules present in Google Calendar
+	c.UpdateCalendar(lectioModules, googleModules) // Updates and deletes events that are missing in Google Calendar
 }
