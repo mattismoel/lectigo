@@ -48,7 +48,6 @@ type Lectio struct {
 }
 
 func NewLectio(loginInfo *LectioLoginInfo) *Lectio {
-	fmt.Println(loginInfo)
 	loginUrl := fmt.Sprintf("https://www.lectio.dk/lectio/%s/login.aspx", loginInfo.SchoolID)
 	jar, _ := cookiejar.New(nil)
 	client := &http.Client{Jar: jar}
