@@ -71,11 +71,6 @@ func NewLectio(loginInfo *LectioLoginInfo) *Lectio {
 		log.Fatal("Could not log the user in. Please check that the login information is correct", err)
 	}
 
-	// Function is fired when a new page is loaded
-	collector.OnResponse(func(r *colly.Response) {
-		log.Println("response received", r.StatusCode, r.Request.URL)
-	})
-
 	return &Lectio{
 		Client:    client,
 		Collector: collector,
@@ -84,7 +79,6 @@ func NewLectio(loginInfo *LectioLoginInfo) *Lectio {
 
 func (*Lectio) GetSchedule(c *colly.Collector, week int) map[string]Module {
 	startTime := time.Now()
-	defer fmt.Printf("GetSchedule took %v\n", time.Since(startTime))
 	modules := make(map[string]Module)
 
 	c.OnHTML("a.s2skemabrik.s2brik", func(e *colly.HTMLElement) {
@@ -181,6 +175,7 @@ func (*Lectio) GetSchedule(c *colly.Collector, week int) map[string]Module {
 	weekString := fmt.Sprintf("%v%v", week, time.Now().Year())
 	scheduleUrl := fmt.Sprintf("https://www.lectio.dk/lectio/143/SkemaNy.aspx?week=%v", weekString)
 	c.Visit(scheduleUrl)
+	log.Printf("Got schedule from Lectio in %v\n", time.Since(startTime))
 	return modules
 }
 
