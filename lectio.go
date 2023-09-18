@@ -45,12 +45,10 @@ type Module struct {
 type Lectio struct {
 	Client    *http.Client
 	Collector *colly.Collector
-	//LoginInfo *LectioLoginInfo
 }
 
 func NewLectio(loginInfo *LectioLoginInfo) *Lectio {
 	fmt.Println(loginInfo)
-	// lectio.LoginInfo = loginInfo
 	loginUrl := fmt.Sprintf("https://www.lectio.dk/lectio/%s/login.aspx", loginInfo.SchoolID)
 	jar, _ := cookiejar.New(nil)
 	client := &http.Client{Jar: jar}
@@ -81,7 +79,6 @@ func NewLectio(loginInfo *LectioLoginInfo) *Lectio {
 	return &Lectio{
 		Client:    client,
 		Collector: collector,
-		//LoginInfo: loginInfo,
 	}
 }
 
