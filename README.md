@@ -19,31 +19,40 @@ $ go mod tidy
 
 ## Building the project
 
-The repository already contains an executable `go-lectio-scraper`. If you wish to rebuild it (might be needed for Windows devices), it can be done with the following command:
+The repository does not contain the executables for the application. These can be build using the following Makefile command:
+
 ```bash
-$ go build .
+$ make build
 ```
+
+This creates a directory called `bin` wherein all the binaries can be found for MacOS, Linux and Windows.
 
 ## Usage
 
-The project can be run either by the executable or the `go run` command. Generally the executable will be faster.
+The project can be run either by the executable (with `make run` or direct call on the executable in `bin` directory) or the `go run` command. Generally the executable will be faster.
 
 ### Examples 
 
 Syncing Lectio schedule with Google Calendar with modules for the next three weeks:
 
 ```bash
-$ ./go-lectio-scraper --command=sync --weeks=3
+$ make run --COMMAND=sync --WEEKS=3
 ```
-
+OR
+```
+./bin/lectigo-<target> --command=sync --weeks=3
+```
 
 Clearing all Lectio modules from Google Calendar
 > Note: This DOES NOT delete normal events from your calendar. Only Lectio modules are targeted.
 
 ```bash
-$ ./go-lectio-scraper --command=clear
+$ make run --COMMAND=clear
 ```
-
+OR
+```bash
+$ ./bin/lectigo-<target> --command=clear
+```
 ## Command line flags
 
 | Flag      | Purpose                                                                                                                         |
