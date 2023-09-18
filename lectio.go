@@ -189,7 +189,6 @@ func (*Lectio) GetSchedule(c *colly.Collector, week int) map[string]Module {
 	weekString := fmt.Sprintf("%v%v", week, time.Now().Year())
 	scheduleUrl := fmt.Sprintf("https://www.lectio.dk/lectio/143/SkemaNy.aspx?week=%v", weekString)
 	c.Visit(scheduleUrl)
-	// fmt.Println(modules)
 	return modules
 
 }
@@ -291,34 +290,3 @@ func ConvertLectioDate(input string) (time.Time, time.Time, error) {
 
 	return time.Time{}, time.Time{}, fmt.Errorf("no date found")
 }
-
-// func ConvertLectioDate(s string) (startTime time.Time, endTime time.Time, err error) {
-// 	location, err := time.LoadLocation("Europe/Copenhagen")
-// 	if err != nil {
-// 		log.Fatalf("Could not load location: %v\n", err)
-// 	}
-// 	layout := "2/1-2006 15:04"
-// 	split := strings.Split(s, " til ")
-// 	if len(split) != 2 {
-// 		return startTime, endTime, fmt.Errorf("invalid format")
-// 	}
-// 	// 18/9-2023 08:10 til 09:40
-
-// 	startTime, err = time.ParseInLocation(layout, split[0], location)
-// 	if err != nil {
-// 		return startTime, endTime, err
-// 	}
-
-// 	date := startTime.Format("2/1-2006")
-// 	endTime, err = time.ParseInLocation(layout, date+" "+split[1], location)
-// 	if err != nil {
-// 		return startTime, endTime, err
-// 	}
-
-// 	// fmt.Println("-----------------")
-// 	// fmt.Printf("Start: %v\n", startTime)
-// 	// fmt.Printf("End: %v\n", endTime)
-// 	// fmt.Println("-----------------")
-
-// 	return startTime, endTime, nil
-// }
