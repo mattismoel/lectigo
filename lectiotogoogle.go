@@ -38,12 +38,9 @@ func main() {
 	}
 
 	l := NewLectio(&lectioLoginInfo)
-	// l.Initialise(&lectioLoginInfo)
 	googleCalendar := NewGoogleCalendar(&googleCalendarConfig)
-	// googleCalendar.Initialise(&googleCalendarConfig)
+	lectioModules := l.GetScheduleWeeks(2)
 
-	lectioModules := l.GetScheduleWeeks(1)
-	googleModules := googleCalendar.GetModules(1)
-
-	googleCalendar.AddModules(lectioModules, googleModules)
+	// googleCalendar.Clear()
+	googleCalendar.AddModules(lectioModules)
 }

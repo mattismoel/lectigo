@@ -8,6 +8,7 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -32,20 +33,19 @@ type LectioLoginInfo struct {
 }
 
 type Module struct {
-	Id        string    `json:"id"`        // The ID of the module
-	Title     string    `json:"title"`     // Title of the module (eg. 3a Dansk)
-	StartDate time.Time `json:"startDate"` // The start date of the module. This includes the date as well as the time of start (eg. 09:55)
-	EndDate   time.Time `json:"endDate"`   // The end date of the module. This includes the date as well as the time of end (eg. 11:25)
-	Room      string    `json:"room"`      // The room of the module (eg. 22)
-	Teacher   string    `json:"teacher"`   // The teacher of the class
-	Homework  string    `json:"homework"`  // Homework for the module
-	Status    string    `json:"status"`    // The status of the module (eg. "Ændret" or "Aflyst")
+	Title        string    `json:"title"`     // Title of the module (eg. 3a Dansk)
+	StartDate    time.Time `json:"startDate"` // The start date of the module. This includes the date as well as the time of start (eg. 09:55)
+	EndDate      time.Time `json:"endDate"`   // The end date of the module. This includes the date as well as the time of end (eg. 11:25)
+	Room         string    `json:"room"`      // The room of the module (eg. 22)
+	Teacher      string    `json:"teacher"`   // The teacher of the class
+	Homework     string    `json:"homework"`  // Homework for the module
+	ModuleStatus string    `json:"status"`    // The status of the module (eg. "Ændret" or "Aflyst")
 }
 
 type Lectio struct {
 	Client    *http.Client
 	Collector *colly.Collector
-	LoginInfo *LectioLoginInfo
+	//LoginInfo *LectioLoginInfo
 }
 
 func NewLectio(loginInfo *LectioLoginInfo) Lectio {
@@ -81,30 +81,41 @@ func NewLectio(loginInfo *LectioLoginInfo) Lectio {
 	return Lectio{
 		Client:    client,
 		Collector: collector,
-		LoginInfo: loginInfo,
+		//LoginInfo: loginInfo,
 	}
 }
 
 func (*Lectio) GetSchedule(c *colly.Collector, week int) map[string]Module {
-	// var wg sync.WaitGroup
+	var err error
 	startTime := time.Now()
-	defer fmt.Printf("Took %v\n", time.Since(startTime))
+	defer fmt.Printf("GetSchedule took %v\n", time.Since(startTime))
 	modules := make(map[string]Module)
-	// mu := sync.Mutex{}
 
 	c.OnHTML("a.s2skemabrik.s2brik", func(e *colly.HTMLElement) {
-		// wg.Add(1)
-		// go func() {
-
+		// Gets the string from the attribute "data-additionalinfo" which contains all nescessary information about the module
+		//
+		// Example string:
+		// ============================
+		// Ændret!
+		// 18/9-2023 12:00 til 13:30
+		// Hold: 3a HI
+		// Lærer: <Teacher Name> (<Teacher Acronym>)
+		// Lokale: <Room Number/Room Name>
+		// Lektier:
+		// <Homework>
+		// ============================
 		addInfo := e.Attr("data-additionalinfo")
 
+		// Creates a slice where each entry is a line of the addInfo
 		lines := strings.Split(addInfo, "\n")
 
 		var id, title, teacher, room, homework string
 
-		// Get ID of the module
+		// Get ID of the module - this is used to sync Lectios schedule with the users Google Calendar events
 		idUrl, _ := url.Parse(e.Attr("href"))
 		urlParams, _ := url.ParseQuery(idUrl.RawQuery)
+
+		// Checks which type of event the current entry is - this can be a private appointment or a class
 		if strings.Contains(idUrl.RawQuery, "absid") {
 			id = urlParams.Get("absid")
 		}
@@ -116,19 +127,17 @@ func (*Lectio) GetSchedule(c *colly.Collector, week int) map[string]Module {
 
 		}
 
-		var status = "uændret"
-		var startDate, endDate time.Time
-		location, err := time.LoadLocation("Europe/Copenhagen")
-		if err != nil {
-			log.Fatalf("Could not load location: %s\n", err)
-		}
+		var status = "uændret"           // Sets the default status of the module
+		var startDate, endDate time.Time // Initialises start and end dates - these have zero values upon initialisation, which will be important when parsing the lines later
 
+		// Checks for homework string and assigns the variable to a formatted string
 		if strings.Contains(addInfo, "Lektier:") {
 			_, homework, _ = strings.Cut(addInfo, "Lektier:")
 			homework = strings.TrimSpace(homework)
 			homework = strings.TrimSuffix(homework, "[...]")
 		}
 
+		// Cycles through each line of the attribute string and checks assigns the variables their values
 		for i, line := range lines {
 			if strings.Contains(line, "Hold: ") && title == "" {
 				_, title, _ = strings.Cut(line, ": ")
@@ -148,34 +157,32 @@ func (*Lectio) GetSchedule(c *colly.Collector, week int) map[string]Module {
 
 			if i == 0 && (strings.Contains(line, "Ændret!") || strings.Contains(line, "Aflyst!")) {
 				status = strings.ToLower(strings.TrimSuffix(strings.TrimSpace(line), "!"))
+				continue
 			}
 
-			if strings.Contains(line, "til") {
-				parts := strings.Split(line, "til")
-				if len(parts) == 2 {
-					startDateTime, err := time.ParseInLocation("02/1-2006 15:04", strings.TrimSpace(parts[0]), location)
-					if err == nil {
-						startDate = startDateTime
-					}
-					endDateTime, err := time.ParseInLocation("15:04", strings.TrimSpace(parts[1]), location)
-					if err == nil {
-						endDate = time.Date(startDate.Year(), startDate.Month(), startDate.Day(), endDateTime.Hour(), endDateTime.Minute(), 0, 0, location)
-					}
+			// Checks if the line is the one that contains the start and end date of the module.
+			// The variables will only be assigned as long as the start and end date have not been initialised yet
+			if strings.Contains(line, "til") && startDate.IsZero() && endDate.IsZero() {
+				startDate, endDate, err = ConvertLectioDate(line)
+				if err != nil {
+					log.Printf("Could not convert string to date: %v\n", err)
 				}
+				continue
+
 			}
 
 		}
-		module := Module{
-			Id:        id,
-			Title:     title,
-			StartDate: startDate,
-			EndDate:   endDate,
-			Room:      room,
-			Teacher:   teacher,
-			Homework:  homework,
-			Status:    status,
-		}
 
+		// Initialises a variable that contains the fitting data and adds it to the return map
+		module := Module{
+			Title:        title,
+			StartDate:    startDate,
+			EndDate:      endDate,
+			Room:         room,
+			Teacher:      teacher,
+			Homework:     homework,
+			ModuleStatus: status,
+		}
 		modules[id] = module
 	})
 
@@ -233,14 +240,13 @@ func EventToModule(event *calendar.Event) Module {
 		log.Fatalf("Could not parse end date: %v\n", err)
 	}
 	return Module{
-		Id:        event.Id,
-		Title:     event.Summary,
-		Room:      event.Location,
-		StartDate: start,
-		EndDate:   end,
-		Teacher:   teacher,
-		Homework:  homework,
-		Status:    status,
+		Title:        event.Summary,
+		Room:         event.Location,
+		StartDate:    start,
+		EndDate:      end,
+		Teacher:      teacher,
+		Homework:     homework,
+		ModuleStatus: status,
 	}
 }
 
@@ -256,3 +262,63 @@ func ModulesToJSON(modules map[string]Module, filename string) {
 		log.Fatal("Could not write to file", err)
 	}
 }
+
+func ConvertLectioDate(input string) (time.Time, time.Time, error) {
+	re := regexp.MustCompile(`(\d{1,2}/\d{1,2}-\d{4} \d{2}:\d{2}) til (\d{2}:\d{2})`)
+	match := re.FindStringSubmatch(input)
+	if len(match) > 0 {
+		location, err := time.LoadLocation("Europe/Copenhagen")
+		if err != nil {
+			log.Fatalf("Could not load location %v\n", "Europe/Copenhagen")
+		}
+		dateParts := strings.Split(match[1], " ")
+		startDateStr := match[1]
+		endDateStr := dateParts[0] + " " + match[2]
+
+		layout := "2/1-2006 15:04"
+		startDate, err1 := time.ParseInLocation(layout, startDateStr, location)
+		endDate, err2 := time.ParseInLocation(layout, endDateStr, location)
+
+		if err1 != nil {
+			return time.Time{}, time.Time{}, err1
+		}
+		if err2 != nil {
+			return time.Time{}, time.Time{}, err2
+		}
+
+		return startDate, endDate, nil
+	}
+
+	return time.Time{}, time.Time{}, fmt.Errorf("no date found")
+}
+
+// func ConvertLectioDate(s string) (startTime time.Time, endTime time.Time, err error) {
+// 	location, err := time.LoadLocation("Europe/Copenhagen")
+// 	if err != nil {
+// 		log.Fatalf("Could not load location: %v\n", err)
+// 	}
+// 	layout := "2/1-2006 15:04"
+// 	split := strings.Split(s, " til ")
+// 	if len(split) != 2 {
+// 		return startTime, endTime, fmt.Errorf("invalid format")
+// 	}
+// 	// 18/9-2023 08:10 til 09:40
+
+// 	startTime, err = time.ParseInLocation(layout, split[0], location)
+// 	if err != nil {
+// 		return startTime, endTime, err
+// 	}
+
+// 	date := startTime.Format("2/1-2006")
+// 	endTime, err = time.ParseInLocation(layout, date+" "+split[1], location)
+// 	if err != nil {
+// 		return startTime, endTime, err
+// 	}
+
+// 	// fmt.Println("-----------------")
+// 	// fmt.Printf("Start: %v\n", startTime)
+// 	// fmt.Printf("End: %v\n", endTime)
+// 	// fmt.Println("-----------------")
+
+// 	return startTime, endTime, nil
+// }

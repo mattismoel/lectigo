@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"time"
 )
 
@@ -27,14 +26,14 @@ func CompareMaps[K comparable, V any](from map[K]V, to map[K]V) (extras map[K]V,
 	for key, value := range from {
 		if _, exists := to[key]; !exists {
 			missing[key] = value
-			fmt.Printf("ID %v does not exist in to-map\n", key)
+			// fmt.Printf("ID %v does not exist in to-map\n", key)
 		}
 	}
 
 	for key, value := range to {
 		if _, exists := from[key]; !exists {
 			extras[key] = value
-			fmt.Printf("ID %v does not exist in from-map and is extra\n", key)
+			// fmt.Printf("ID %v does not exist in from-map and is extra\n", key)
 		}
 	}
 
