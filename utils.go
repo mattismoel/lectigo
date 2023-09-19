@@ -49,11 +49,13 @@ func PrettyPrint(i interface{}) string {
 	return string(s)
 }
 
-func GetMonday() time.Time {
-	t := time.Now()
-	offset := int(time.Monday - t.Weekday())
-	if offset > 0 {
-		offset = -6
+// Gets the date of the monday of the current week. If
+func GetMonday() (time.Time, error) {
+	location, err := time.LoadLocation("Europe/Copenhagen")
+	if err != nil {
+		return time.Time{}, err
 	}
-	return t.AddDate(0, 0, offset)
+	t := time.Now()
+	off := time.Now().Weekday() - time.Monday
+	return time.Date(t.Year(), t.Month(), t.Day()-int(off), 0, 0, 0, 0, location), nil
 }

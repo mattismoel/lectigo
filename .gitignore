@@ -8,3 +8,4 @@ schedule.json
 bin/lectigo-darwin
 bin/lectigo-linux
 bin/lectigo-windows
+.env
