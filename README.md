@@ -69,30 +69,18 @@ $ ./bin/lectigo-<target> --command=clear
 This project makes use of the [Google Calendar API](google.golang.org/api/calendar/v3), and therefore needs you to log in with your Google Account. When the application is run for the first time, a link will appear for you to log in. This will return a link in the address bar. Copy the value of `code=` (until `&scope`) and paste it into the terminal and press `Enter`. A token should be generated as `token.json`.
 
 
-### Lectio login details
+### Environment variables
 
-The login details of Lectio should be provided in a `lectioSecrets.json` file with the following format:
+The login details of Lectio and the Google Calendar ID of your choice should be provided in a `.env` file with the following variables:
 
-```json
-{
-    "username": "<username>",
-    "password": "<password>",
-    "schoolID": "<school_id>"
-}
+```
+LECTIO_USERNAME=<username>
+LECTIO_PASSWORD=<password>
+LECTIO_SCHOOL_ID=<school_id>
+GOOGLE_CALENDAR_ID=<calendar_id>
 ```
 
 The `schoolID` can be found when visiting the Lectio frontpage - either before or after login at `https://lectio.dk/lectio/<schoolID>/...` 
-
-
-### Google Calendar ID
-
-If you do not wish to use the default calendar, a `googleSecrets.json` file should be provided. This should have the following formatting:
-
-```json
-{
-    "calendarID": "<calendar_id>"
-}
-```
 
 The list of calendars that you own can be found at [Google Calendar API's documentation CalendarList:list()](https://developers.google.com/calendar/api/v3/reference/calendarList/list). In the sidebar, you should see an `Execute` button. The resulting JSON is a list of your Google calendars. Find the desired calendar, copy the value of `"id"` and paste it into the `googleSecrets.json` file. Everything should be ready to go.
 

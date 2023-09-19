@@ -40,7 +40,7 @@ func NewGoogleCalendar(CalendarInfo *CalendarInfo) *GoogleCalendar {
 	if err != nil {
 		log.Fatalf("Unable to parse client secret file to config: %v", err)
 	}
-	
+
 	client := *getClient(config)
 	service, err := calendar.NewService(ctx, option.WithHTTPClient(&client))
 	if err != nil {
