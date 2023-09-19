@@ -9,3 +9,4 @@ bin/lectigo-darwin
 bin/lectigo-linux
 bin/lectigo-windows
 .env
+service_credentials.json

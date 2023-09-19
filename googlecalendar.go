@@ -29,7 +29,6 @@ type GoogleCalendar struct {
 }
 
 func NewGoogleCalendar(CalendarInfo *CalendarInfo) *GoogleCalendar {
-	log.Printf("Started server on localhost:3333\n")
 	ctx := context.Background()
 	bytes, err := os.ReadFile("credentials.json")
 	if err != nil {
@@ -37,9 +36,11 @@ func NewGoogleCalendar(CalendarInfo *CalendarInfo) *GoogleCalendar {
 	}
 
 	config, err := google.ConfigFromJSON(bytes, calendar.CalendarScope)
+
 	if err != nil {
 		log.Fatalf("Unable to parse client secret file to config: %v", err)
 	}
+	
 	client := *getClient(config)
 	service, err := calendar.NewService(ctx, option.WithHTTPClient(&client))
 	if err != nil {
@@ -47,7 +48,6 @@ func NewGoogleCalendar(CalendarInfo *CalendarInfo) *GoogleCalendar {
 	}
 
 	return &GoogleCalendar{
-		//Client:       &client,
 		Service:      service,
 		CalendarInfo: CalendarInfo,
 		l:            log.New(os.Stdout, "google-calendar", log.LstdFlags),

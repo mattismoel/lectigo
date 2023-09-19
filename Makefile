@@ -9,7 +9,7 @@ build:
 	GOARCH=amd64 GOOS=windows go build -o ./bin/${BINARY_NAME}-windows *.go
 
 run: build
-	./bin/${BINARY_NAME}-darwin -command=${COMMAND} -weeks=${WEEKS}
+	./bin/${BINARY_NAME}-linux -command=${COMMAND} -weeks=${WEEKS}
 
 clean:
 	go clean
