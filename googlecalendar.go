@@ -17,18 +17,13 @@ import (
 	"google.golang.org/api/option"
 )
 
-type CalendarInfo struct {
-	CalendarID string `json:"calendarID"`
-}
-
 type GoogleCalendar struct {
-	//Client       *http.Client
-	Service      *calendar.Service
-	CalendarInfo *CalendarInfo
-	l            *log.Logger
+	Service *calendar.Service
+	ID      string
+	l       *log.Logger
 }
 
-func NewGoogleCalendar(CalendarInfo *CalendarInfo) *GoogleCalendar {
+func NewGoogleCalendar(id string) *GoogleCalendar {
 	ctx := context.Background()
 	bytes, err := os.ReadFile("credentials.json")
 	if err != nil {
@@ -48,9 +43,9 @@ func NewGoogleCalendar(CalendarInfo *CalendarInfo) *GoogleCalendar {
 	}
 
 	return &GoogleCalendar{
-		Service:      service,
-		CalendarInfo: CalendarInfo,
-		l:            log.New(os.Stdout, "google-calendar", log.LstdFlags),
+		Service: service,
+		ID:      id,
+		l:       log.New(os.Stdout, "google-calendar", log.LstdFlags),
 	}
 }
 
@@ -140,7 +135,7 @@ func (c *GoogleCalendar) addModules(modules map[string]Module) {
 				Status:      "confirmed",
 			}
 
-			_, err := c.Service.Events.Update(googleCalendarConfig.CalendarID, calEvent.Id, calEvent).Do()
+			_, err := c.Service.Events.Update(c.ID, calEvent.Id, calEvent).Do()
 			if err != nil {
 				log.Fatalf("Could not update event %v: %v\n", calEvent.Id, err)
 			}
@@ -175,7 +170,7 @@ func (c *GoogleCalendar) GetModules(weekCount int) (googleCalModules map[string]
 	}
 	endDate := startDate.AddDate(0, 0, 7*weekCount)
 	fmt.Printf("MONDAY %v", startDate)
-	req := c.Service.Events.List(c.CalendarInfo.CalendarID).TimeMin(startDate.Format(time.RFC3339)).TimeMax(endDate.Format(time.RFC3339))
+	req := c.Service.Events.List(c.ID).TimeMin(startDate.Format(time.RFC3339)).TimeMax(endDate.Format(time.RFC3339))
 	for {
 		if pageToken != "" {
 			req.PageToken(pageToken)
@@ -183,7 +178,6 @@ func (c *GoogleCalendar) GetModules(weekCount int) (googleCalModules map[string]
 		r, err := req.Do()
 		if err != nil {
 			return nil, err
-			log.Fatalf("Could not retrieve events: %v\n", err)
 		}
 		for _, item := range r.Items {
 			if strings.Contains(item.Id, "lec") {
@@ -219,7 +213,7 @@ func (c *GoogleCalendar) UpdateCalendar(lectioModules map[string]Module, googleM
 	}
 	for key := range extras {
 		calID := "lec" + key
-		err := c.Service.Events.Delete(c.CalendarInfo.CalendarID, calID).Do()
+		err := c.Service.Events.Delete(c.ID, calID).Do()
 		if err != nil {
 			return err
 			// log.Fatalf("Could not delete event %v: %v\n", calID, err)
@@ -269,7 +263,7 @@ func (c *GoogleCalendar) Clear() error {
 	wg := sync.WaitGroup{}
 
 	for {
-		req := c.Service.Events.List(c.CalendarInfo.CalendarID)
+		req := c.Service.Events.List(c.ID)
 		if pageToken != "" {
 			req.PageToken(pageToken)
 		}
@@ -283,7 +277,7 @@ func (c *GoogleCalendar) Clear() error {
 				wg.Add(1)
 				go func(item *calendar.Event) {
 					defer wg.Done()
-					err := c.Service.Events.Delete(c.CalendarInfo.CalendarID, item.Id).Do()
+					err := c.Service.Events.Delete(c.ID, item.Id).Do()
 					if err != nil {
 						log.Fatalf("Could not delete event %v: %v\n", item.Id, err)
 					}

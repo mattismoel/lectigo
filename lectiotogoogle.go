@@ -10,7 +10,6 @@ import (
 
 // The login information of the user. This should be stored in a "secrets.json" file, and should have the following variables: username, password, schoolID, calendarID
 var lectioLoginInfo *LectioLoginInfo
-var googleCalendarConfig *CalendarInfo
 
 func main() {
 	var username, password, schoolID string
@@ -42,29 +41,6 @@ func main() {
 		log.Fatalf("Could not get the Google Calendar ID from .env file. Please make sure that it is present")
 	}
 
-	googleCalendarConfig = &CalendarInfo{
-		CalendarID: googleCalendarID,
-	}
-	// Reads the content of the lectioSecrets.json file and attempts to unmarshal it to the lectioLoginInfo variable.
-	// This stores the users login information
-	// b, err := os.ReadFile("lectioSecrets.json")
-	// if err != nil {
-	// 	log.Fatalf("Could not read the contents of %q: %v\n", "lectioSecrets.json", err)
-	// }
-	// if err := json.Unmarshal(b, &lectioLoginInfo); err != nil {
-	// 	panic(err)
-	// }
-
-	// // Reads the content of the lectioSecrets.json file and attempts to unmarshal it to the lectioLoginInfo variable.
-	// // This stores the users login information
-	// b, err = os.ReadFile("googleSecrets.json")
-	// if err != nil {
-	// 	log.Fatalf("Could not read the contents of %q: %v\n", "googleSecrets.json", err)
-	// }
-	// if err := json.Unmarshal(b, &googleCalendarConfig); err != nil {
-	// 	panic(err)
-	// }
-
 	var l *Lectio
 	var c *GoogleCalendar
 
@@ -80,7 +56,7 @@ func main() {
 	case "sync":
 		log.Printf("Syncing Google Calendar for the next %v weeks...\n", *weekCount)
 		l = NewLectio(lectioLoginInfo)                       // Creates a new Lectio client
-		c = NewGoogleCalendar(googleCalendarConfig)          // Creates a new Google Calendar client
+		c = NewGoogleCalendar(schoolID)                      // Creates a new Google Calendar client
 		lectioModules, err := l.GetScheduleWeeks(*weekCount) // Gets the modules from the Lectio schedule
 		if err != nil {
 			log.Fatalf("Could not get the weekly schedule: %v\n", err)
@@ -97,7 +73,7 @@ func main() {
 	// Create Google Calendar client and clear the calendar
 	case "clear":
 		log.Printf("Clearing Google Calendar...\n")
-		c = NewGoogleCalendar(googleCalendarConfig) // Creates a new Google Calendar client
+		c = NewGoogleCalendar(googleCalendarID) // Creates a new Google Calendar client
 		err := c.Clear()
 		if err != nil {
 			log.Fatalf("Could not clear the Google Calendar: %v\n", err)
