@@ -56,7 +56,7 @@ func main() {
 	case "sync":
 		log.Printf("Syncing Google Calendar for the next %v weeks...\n", *weekCount)
 		l = NewLectio(lectioLoginInfo)                       // Creates a new Lectio client
-		c = NewGoogleCalendar(schoolID)                      // Creates a new Google Calendar client
+		c = NewGoogleCalendar(googleCalendarID)              // Creates a new Google Calendar client
 		lectioModules, err := l.GetScheduleWeeks(*weekCount) // Gets the modules from the Lectio schedule
 		if err != nil {
 			log.Fatalf("Could not get the weekly schedule: %v\n", err)

@@ -152,9 +152,7 @@ func (*Lectio) GetSchedule(c *colly.Collector, week int) (modules map[string]Mod
 
 				var convErr error
 				startDate, endDate, convErr = ConvertLectioDate(line)
-				if id == "60924561119" {
-					fmt.Println(id, startDate, endDate)
-				}
+
 				if convErr != nil {
 					log.Printf("Could not convert string to date: %v\n", err)
 				}
@@ -163,7 +161,7 @@ func (*Lectio) GetSchedule(c *colly.Collector, week int) (modules map[string]Mod
 			}
 
 		}
-		fmt.Printf("FROM GET SCHED: ID: %v, Start: %v, End: %v\n", id, startDate, endDate)
+
 		module := Module{
 			Id:           id,
 			Title:        title,
@@ -283,11 +281,6 @@ func ConvertLectioDate(s string) (startTime time.Time, endTime time.Time, err er
 	if err != nil {
 		return startTime, endTime, err
 	}
-
-	fmt.Println("-----------------")
-	fmt.Printf("Start: %v\n", startTime)
-	fmt.Printf("End: %v\n", endTime)
-	fmt.Println("-----------------")
 
 	return startTime, endTime, nil
 }

@@ -25,12 +25,15 @@ type GoogleCalendar struct {
 
 func NewGoogleCalendar(id string) *GoogleCalendar {
 	ctx := context.Background()
+
 	bytes, err := os.ReadFile("credentials.json")
 	if err != nil {
 		log.Fatalf("Could not read client secret file: %v", err)
 	}
 
 	config, err := google.ConfigFromJSON(bytes, calendar.CalendarScope)
+
+	config.RedirectURL = "http://localhost:3000/oauth/token"
 
 	if err != nil {
 		log.Fatalf("Unable to parse client secret file to config: %v", err)
@@ -60,19 +63,19 @@ func getClient(config *oauth2.Config) *http.Client {
 }
 
 func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
-	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOnline)
+	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
 
 	fmt.Printf("Go to the following link in your browser and type the authorization code %q\n", authURL)
 
 	var authCode string
 	if _, err := fmt.Scan(&authCode); err != nil {
-		log.Fatalf("Could not read authorization code: %v", err)
+		log.Fatalf("Could not read authorization code: %v\n", err)
 	}
 
 	token, err := config.Exchange(context.TODO(), authCode)
 
 	if err != nil {
-		log.Fatalf("Unable to retrieve token from web: %v", err)
+		log.Fatalf("Unable to retrieve token from web: %v\n", err)
 	}
 
 	return token
@@ -104,7 +107,8 @@ func saveToken(path string, token *oauth2.Token) {
 
 func (c *GoogleCalendar) addModules(modules map[string]Module) {
 	startTime := time.Now()
-	moduleCount := 0
+	var updateCount, insertCount int
+
 	wg := sync.WaitGroup{}
 	// for _, module := range modules {
 	// 	fmt.Printf(PrettyPrint(module))
@@ -135,22 +139,32 @@ func (c *GoogleCalendar) addModules(modules map[string]Module) {
 				Status:      "confirmed",
 			}
 
+			// If module does not already exist, insert it, e
+			if _, err := c.Service.Events.Get(c.ID, calEvent.Id).Do(); err != nil {
+				_, err := c.Service.Events.Insert(c.ID, calEvent).Do()
+				if err != nil {
+					c.l.Fatalf("Could not insert missing event: %v\n", err)
+					insertCount++
+					return
+				}
+				c.l.Printf("Inserted new event\n")
+			}
 			_, err := c.Service.Events.Update(c.ID, calEvent.Id, calEvent).Do()
 			if err != nil {
 				log.Fatalf("Could not update event %v: %v\n", calEvent.Id, err)
 			}
-			moduleCount++
+			updateCount++
 		}(key, module)
 	}
 	wg.Wait()
 
 	// If no modules have been updated or inserted
-	if !(moduleCount > 0) {
+	if insertCount == 0 && updateCount == 0 {
 		log.Printf("Nothing to do. Lectio schedule is up to date with Google Calendar.\n")
 		return
 	}
 
-	log.Printf("Added or updated %v modules to Google Calendar in %v\n", moduleCount, time.Since(startTime))
+	log.Printf("Added %v modules and updated %v modules in Google Calendar in %v\n", insertCount, updateCount, time.Since(startTime))
 }
 
 // Returns all modules from Google Calendar.
