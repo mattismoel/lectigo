@@ -36,7 +36,7 @@ The project can be run either by the executable (with `make run` or direct call 
 Syncing Lectio schedule with Google Calendar with modules for the next three weeks:
 
 ```bash
-$ make run --COMMAND=sync --WEEKS=3
+$ make run COMMAND=sync WEEKS=3
 ```
 OR
 ```
@@ -47,7 +47,7 @@ Clearing all Lectio modules from Google Calendar
 > Note: This DOES NOT delete normal events from your calendar. Only Lectio modules are targeted.
 
 ```bash
-$ make run --COMMAND=clear
+$ make run COMMAND=clear
 ```
 OR
 ```bash
