@@ -165,7 +165,6 @@ func (*Lectio) GetSchedule(c *colly.Collector, week int) (modules map[string]Mod
 	weekString := fmt.Sprintf("%v%v", week, time.Now().Year())
 	scheduleUrl := fmt.Sprintf("https://www.lectio.dk/lectio/143/SkemaNy.aspx?week=%v", weekString)
 	c.Visit(scheduleUrl)
-	// fmt.Println(modules)
 	return modules, nil
 
 }
