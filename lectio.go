@@ -49,8 +49,6 @@ type Lectio struct {
 }
 
 func NewLectio(loginInfo *LectioLoginInfo) *Lectio {
-	fmt.Println(loginInfo)
-	// lectio.LoginInfo = loginInfo
 	loginUrl := fmt.Sprintf("https://www.lectio.dk/lectio/%s/login.aspx", loginInfo.SchoolID)
 	jar, _ := cookiejar.New(nil)
 	client := &http.Client{Jar: jar}
@@ -72,11 +70,6 @@ func NewLectio(loginInfo *LectioLoginInfo) *Lectio {
 	if err != nil {
 		log.Fatal("Could not log the user in. Please check that the login information is correct", err)
 	}
-
-	// Function is fired when a new page is loaded
-	collector.OnResponse(func(r *colly.Response) {
-		log.Println("response received", r.StatusCode, r.Request.URL)
-	})
 
 	return &Lectio{
 		Client:    client,
@@ -149,15 +142,8 @@ func (*Lectio) GetSchedule(c *colly.Collector, week int) (modules map[string]Mod
 			}
 
 			if strings.Contains(line, "til") && startDate.IsZero() && endDate.IsZero() {
-
-				var convErr error
-				startDate, endDate, convErr = ConvertLectioDate(line)
-
-				if convErr != nil {
-					log.Printf("Could not convert string to date: %v\n", err)
-				}
+				startDate, endDate, _ = ConvertLectioDate(line)
 				continue
-
 			}
 
 		}
@@ -169,7 +155,7 @@ func (*Lectio) GetSchedule(c *colly.Collector, week int) (modules map[string]Mod
 			EndDate:      endDate,
 			Room:         room,
 			Teacher:      teacher,
-			Homework:     "homework",
+			Homework:     homework,
 			ModuleStatus: status,
 		}
 

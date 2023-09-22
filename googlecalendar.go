@@ -11,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/calendar/v3"
@@ -49,7 +48,7 @@ func NewGoogleCalendar(id string) *GoogleCalendar {
 	return &GoogleCalendar{
 		Service: service,
 		ID:      id,
-		l:       log.New(os.Stdout, "google-calendar", log.LstdFlags),
+		l:       log.New(os.Stdout, "google-calendar ", log.LstdFlags),
 	}
 }
 
@@ -109,31 +108,13 @@ func saveToken(path string, token *oauth2.Token) {
 func (c *GoogleCalendar) addModules(modules map[string]Module) {
 	startTime := time.Now()
 	var updateCount, insertCount int
-
 	wg := sync.WaitGroup{}
-	// for _, module := range modules {
-	// 	fmt.Printf(PrettyPrint(module))
-	// }
+
 	for key, module := range modules {
 		wg.Add(1)
 		go func(key string, module Module) {
 			defer wg.Done()
-			// start := &calendar.EventDateTime{DateTime: module.StartDate.Format(time.RFC3339), TimeZone: "Europe/Copenhagen"}
-			// end := &calendar.EventDateTime{DateTime: module.EndDate.Format(time.RFC3339), TimeZone: "Europe/Copenhagen"}
-
-			//Find color ID depending on the status of the module. "aflyst" results in red, "ændret" results in green
-
 			calEvent := lectioModuleToGoogleEvent(&module)
-			// calEvent := &calendar.Event{
-			// 	Id:          "lec" + key,
-			// 	Start:       start,
-			// 	End:         end,
-			// 	ColorId:     calendarColorID,
-			// 	Summary:     module.Title,
-			// 	Description: module.Teacher,
-			// 	Location:    module.Room,
-			// 	Status:      "confirmed",
-			// }
 			_, err := c.Service.Events.Insert(c.ID, calEvent).Do()
 			if err != nil {
 				c.l.Fatalf("Could not insert missing event: %v\n", err)
@@ -154,9 +135,8 @@ func (c *GoogleCalendar) addModules(modules map[string]Module) {
 }
 
 // Returns all modules from Google Calendar.
-func (c *GoogleCalendar) GetModules(weekCount int) (googleCalModules map[string]Module, err error) {
-	googleCalModules = make(map[string]Module)
-
+func (c *GoogleCalendar) GetModules(weekCount int) (map[string]*calendar.Event, error) {
+	googleCalModules := make(map[string]*calendar.Event)
 	s := time.Now()
 	pageToken := ""
 	eventCount := 0
@@ -169,8 +149,7 @@ func (c *GoogleCalendar) GetModules(weekCount int) (googleCalModules map[string]
 		return nil, err
 	}
 	endDate := startDate.AddDate(0, 0, 7*weekCount)
-	fmt.Printf("MONDAY %v", startDate)
-	req := c.Service.Events.List(c.ID).TimeMin(startDate.Format(time.RFC3339)).TimeMax(endDate.Format(time.RFC3339))
+	req := c.Service.Events.List(c.ID).TimeMin(startDate.Format(time.RFC3339)).TimeMax(endDate.Format(time.RFC3339)).ShowDeleted(true)
 	for {
 		if pageToken != "" {
 			req.PageToken(pageToken)
@@ -186,9 +165,7 @@ func (c *GoogleCalendar) GetModules(weekCount int) (googleCalModules map[string]
 					defer wg.Done()
 					defer mu.Unlock()
 					mu.Lock()
-
-					id := strings.TrimPrefix(item.Id, "lec")
-					googleCalModules[id] = googleEventToModule(item)
+					googleCalModules[item.Id] = item
 					eventCount++
 				}(item)
 			}
@@ -204,56 +181,82 @@ func (c *GoogleCalendar) GetModules(weekCount int) (googleCalModules map[string]
 	return googleCalModules, nil
 }
 
-func (c *GoogleCalendar) UpdateCalendar(lectioModules map[string]Module, googleModules map[string]Module) error {
-	// Finds the missing and extra modules in the Google Calendar with respect to the modules in the Lectio schedule
-	extras, _ := CompareMaps(lectioModules, googleModules)
+func (c *GoogleCalendar) UpdateCalendar(lectioModules map[string]Module, googleEvents map[string]*calendar.Event) error {
+	var inserted int // For keeping track of inserted events count after execution
+	var updated int  // For keeping track of updated events count after execution
+	var deleted int  // For keeping track of deleted events count after execution
 
-	// for _, miss := range missing {
-	// 	fmt.Println(PrettyPrint(miss))
-	// }
-	// Deletes every module that is not in the Lectio schedule
-	for key := range extras {
-		calID := "lec" + key
-		err := c.Service.Events.Delete(c.ID, calID).Do()
-		if err != nil {
-			return err
-			// log.Fatalf("Could not delete event %v: %v\n", calID, err)
-		}
-		log.Printf("Deleted %v\n", calID)
+	startTime := time.Now()
+	// Loops through each module in the Lectio schedule and checks for differences between it and the Google Calendar
+	// If a Google Event is outdated, it is updated
+	// If a Lectio module is missing from Google Calendar, it is inserted
+	var wg sync.WaitGroup
+
+	for lectioKey, lectioModule := range lectioModules {
+		wg.Add(1)
+		go func(lectioKey string, lectioModule Module) error {
+			defer wg.Done()
+			if googleEvent, ok := googleEvents["lec"+lectioKey]; ok {
+				isCancelled := googleEvent.Status == "cancelled"
+				needsUpdate := googleEventToModule(googleEvent) == lectioModule
+
+				if isCancelled || needsUpdate {
+					_, err := c.Service.Events.Update(c.ID, googleEvent.Id, lectioModuleToGoogleEvent(&lectioModule)).Do()
+					c.l.Printf("Attempting to update %v\n", googleEvent.Id)
+					if err != nil {
+						return err
+					}
+					updated++
+					return nil
+				}
+				return nil
+			} else {
+				event := lectioModuleToGoogleEvent(&lectioModule)
+				c.l.Printf("Attempting to insert %v\n", event.Id)
+				_, err := c.Service.Events.Insert(c.ID, event).Do()
+				if err != nil {
+					return err
+				}
+				inserted++
+			}
+			return nil
+		}(lectioKey, lectioModule)
 	}
 
-	missing := make(map[string]Module)
+	wg.Wait()
+
+	// Loops through all Google Events and checks if it should be deleted
+	for googleKey, googleEvent := range googleEvents {
+		wg.Add(1)
+		go func(googleKey string, googleEvent *calendar.Event) error {
+			defer wg.Done()
+			trimPrefix := strings.TrimPrefix(googleKey, "lec")
+
+			if _, ok := lectioModules[trimPrefix]; !ok {
+				if googleEvent.Status != "cancelled" {
+					c.l.Printf("Attempting to delete %v\n", googleKey)
+					err := c.Service.Events.Delete(c.ID, googleKey).Do()
+					if err != nil {
+						return err
+					}
+					deleted++
+				}
+			}
+			return nil
+		}(googleKey, googleEvent)
+	}
+	wg.Wait()
 
 	// Print statements for displaying results.
 	// Prints missing and extra modules in the Google Calendar
 	fmt.Println()
 	fmt.Println("RESULTS", strings.Repeat("=", 23))
-	fmt.Printf("%-30s%-10v\n", "Missing from Google Calendar:", len(missing))
-	fmt.Printf("%-30s%-10v\n", "Extra in Google Calendar:", len(extras))
+	fmt.Printf("Updated %v events in Google Calendar\n", updated)
+	fmt.Printf("Deleted %v events from Google Calendar\n", deleted)
+	fmt.Printf("Inserted %v events into Google Calendar\n", inserted)
 	fmt.Println(strings.Repeat("=", 31))
-	fmt.Println()
+	fmt.Printf("\nThe execution took %v\n\n", time.Since(startTime))
 
-	for key, lectioModule := range lectioModules {
-		// If lectio module is in Google Calendar
-		if googleModule, ok := googleModules[key]; ok {
-			// If the events are not the same - outdated, update the module
-			if !cmp.Equal(googleModule, lectioModule) {
-				fmt.Printf("===========\nShould be updated: %v\n\n\n VS: %v\n\n =============:", PrettyPrint(lectioModule), PrettyPrint(googleModule))
-				if _, err := c.Service.Events.Update(c.ID, "lec"+key, lectioModuleToGoogleEvent(&lectioModule)).Do(); err != nil {
-					return err
-				}
-			}
-			continue
-		}
-		missing[key] = lectioModule
-		// If not in Google Calendar, insert it
-		// if _, err := c.Service.Events.Insert(c.ID, lectioModuleToGoogleEvent(&lectioModule)).Do(); err != nil {
-		// 	return err
-		// }
-	}
-
-	// Adds the missing modules to Google Calendar
-	c.addModules(missing)
 	return nil
 }
 
@@ -265,9 +268,11 @@ func lectioModuleToGoogleEvent(m *Module) *calendar.Event {
 	case "ændret":
 		calendarColorID = "2"
 	}
+
+	description := fmt.Sprintf("%s\n%s", m.Teacher, m.Homework)
 	return &calendar.Event{
 		Id:          "lec" + m.Id,
-		Description: m.Teacher,
+		Description: description,
 		Start: &calendar.EventDateTime{
 			DateTime: m.StartDate.Format(time.RFC3339),
 			TimeZone: "Europe/Copenhagen",
@@ -279,6 +284,7 @@ func lectioModuleToGoogleEvent(m *Module) *calendar.Event {
 		Location: m.Room,
 		Summary:  m.Title,
 		ColorId:  calendarColorID,
+		Status:   "confirmed",
 	}
 }
 
@@ -292,6 +298,10 @@ func googleEventToModule(event *calendar.Event) Module {
 	if err != nil {
 		log.Fatalf("Could not parse end date: %v\n", err)
 	}
+
+	homework := ""
+	fmt.Println(event.Description)
+
 	return Module{
 		Id:           strings.TrimPrefix(event.Id, "lec"),
 		Title:        event.Summary,
@@ -299,7 +309,7 @@ func googleEventToModule(event *calendar.Event) Module {
 		EndDate:      end,
 		Room:         event.Location,
 		Teacher:      event.Description,
-		Homework:     "homework",
+		Homework:     homework,
 		ModuleStatus: statusFromColorID(event.ColorId),
 	}
 }
@@ -353,4 +363,14 @@ func statusFromColorID(colorId string) string {
 		return "ændret"
 	}
 	return "uændret"
+}
+
+func colorIDFromStatus(status string) string {
+	switch status {
+	case "aflyst":
+		return "4"
+	case "ændret":
+		return "2"
+	}
+	return ""
 }
