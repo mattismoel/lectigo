@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/calendar/v3"
@@ -117,43 +118,28 @@ func (c *GoogleCalendar) addModules(modules map[string]Module) {
 		wg.Add(1)
 		go func(key string, module Module) {
 			defer wg.Done()
-			start := &calendar.EventDateTime{DateTime: module.StartDate.Format(time.RFC3339), TimeZone: "Europe/Copenhagen"}
-			end := &calendar.EventDateTime{DateTime: module.EndDate.Format(time.RFC3339), TimeZone: "Europe/Copenhagen"}
+			// start := &calendar.EventDateTime{DateTime: module.StartDate.Format(time.RFC3339), TimeZone: "Europe/Copenhagen"}
+			// end := &calendar.EventDateTime{DateTime: module.EndDate.Format(time.RFC3339), TimeZone: "Europe/Copenhagen"}
 
 			//Find color ID depending on the status of the module. "aflyst" results in red, "ændret" results in green
-			calendarColorID := ""
-			switch module.ModuleStatus {
-			case "aflyst":
-				calendarColorID = "4"
-			case "ændret":
-				calendarColorID = "2"
-			}
-			calEvent := &calendar.Event{
-				Id:          "lec" + key,
-				Start:       start,
-				End:         end,
-				ColorId:     calendarColorID,
-				Summary:     module.Title,
-				Description: module.Teacher,
-				Location:    module.Room,
-				Status:      "confirmed",
-			}
 
-			// If module does not already exist, insert it, e
-			if _, err := c.Service.Events.Get(c.ID, calEvent.Id).Do(); err != nil {
-				_, err := c.Service.Events.Insert(c.ID, calEvent).Do()
-				if err != nil {
-					c.l.Fatalf("Could not insert missing event: %v\n", err)
-					insertCount++
-					return
-				}
-				c.l.Printf("Inserted new event\n")
-			}
-			_, err := c.Service.Events.Update(c.ID, calEvent.Id, calEvent).Do()
+			calEvent := lectioModuleToGoogleEvent(&module)
+			// calEvent := &calendar.Event{
+			// 	Id:          "lec" + key,
+			// 	Start:       start,
+			// 	End:         end,
+			// 	ColorId:     calendarColorID,
+			// 	Summary:     module.Title,
+			// 	Description: module.Teacher,
+			// 	Location:    module.Room,
+			// 	Status:      "confirmed",
+			// }
+			_, err := c.Service.Events.Insert(c.ID, calEvent).Do()
 			if err != nil {
-				log.Fatalf("Could not update event %v: %v\n", calEvent.Id, err)
+				c.l.Fatalf("Could not insert missing event: %v\n", err)
 			}
-			updateCount++
+			insertCount++
+			c.l.Printf("Inserted new event\n")
 		}(key, module)
 	}
 	wg.Wait()
@@ -220,11 +206,12 @@ func (c *GoogleCalendar) GetModules(weekCount int) (googleCalModules map[string]
 
 func (c *GoogleCalendar) UpdateCalendar(lectioModules map[string]Module, googleModules map[string]Module) error {
 	// Finds the missing and extra modules in the Google Calendar with respect to the modules in the Lectio schedule
-	extras, missing := CompareMaps(lectioModules, googleModules)
+	extras, _ := CompareMaps(lectioModules, googleModules)
 
-	for _, miss := range missing {
-		fmt.Println(PrettyPrint(miss))
-	}
+	// for _, miss := range missing {
+	// 	fmt.Println(PrettyPrint(miss))
+	// }
+	// Deletes every module that is not in the Lectio schedule
 	for key := range extras {
 		calID := "lec" + key
 		err := c.Service.Events.Delete(c.ID, calID).Do()
@@ -235,6 +222,8 @@ func (c *GoogleCalendar) UpdateCalendar(lectioModules map[string]Module, googleM
 		log.Printf("Deleted %v\n", calID)
 	}
 
+	missing := make(map[string]Module)
+
 	// Print statements for displaying results.
 	// Prints missing and extra modules in the Google Calendar
 	fmt.Println()
@@ -244,9 +233,53 @@ func (c *GoogleCalendar) UpdateCalendar(lectioModules map[string]Module, googleM
 	fmt.Println(strings.Repeat("=", 31))
 	fmt.Println()
 
+	for key, lectioModule := range lectioModules {
+		// If lectio module is in Google Calendar
+		if googleModule, ok := googleModules[key]; ok {
+			// If the events are not the same - outdated, update the module
+			if !cmp.Equal(googleModule, lectioModule) {
+				fmt.Printf("===========\nShould be updated: %v\n\n\n VS: %v\n\n =============:", PrettyPrint(lectioModule), PrettyPrint(googleModule))
+				if _, err := c.Service.Events.Update(c.ID, "lec"+key, lectioModuleToGoogleEvent(&lectioModule)).Do(); err != nil {
+					return err
+				}
+			}
+			continue
+		}
+		missing[key] = lectioModule
+		// If not in Google Calendar, insert it
+		// if _, err := c.Service.Events.Insert(c.ID, lectioModuleToGoogleEvent(&lectioModule)).Do(); err != nil {
+		// 	return err
+		// }
+	}
+
 	// Adds the missing modules to Google Calendar
 	c.addModules(missing)
 	return nil
+}
+
+func lectioModuleToGoogleEvent(m *Module) *calendar.Event {
+	calendarColorID := ""
+	switch m.ModuleStatus {
+	case "aflyst":
+		calendarColorID = "4"
+	case "ændret":
+		calendarColorID = "2"
+	}
+	return &calendar.Event{
+		Id:          "lec" + m.Id,
+		Description: m.Teacher,
+		Start: &calendar.EventDateTime{
+			DateTime: m.StartDate.Format(time.RFC3339),
+			TimeZone: "Europe/Copenhagen",
+		},
+		End: &calendar.EventDateTime{
+			DateTime: m.EndDate.Format(time.RFC3339),
+			TimeZone: "Europe/Copenhagen",
+		},
+		Location: m.Room,
+		Summary:  m.Title,
+		ColorId:  calendarColorID,
+	}
 }
 
 func googleEventToModule(event *calendar.Event) Module {
@@ -260,12 +293,14 @@ func googleEventToModule(event *calendar.Event) Module {
 		log.Fatalf("Could not parse end date: %v\n", err)
 	}
 	return Module{
-		Title:     event.Summary,
-		StartDate: start,
-		EndDate:   end,
-		Room:      event.Location,
-		Teacher:   event.Description,
-		Homework:  event.Description,
+		Id:           strings.TrimPrefix(event.Id, "lec"),
+		Title:        event.Summary,
+		StartDate:    start,
+		EndDate:      end,
+		Room:         event.Location,
+		Teacher:      event.Description,
+		Homework:     "homework",
+		ModuleStatus: statusFromColorID(event.ColorId),
 	}
 }
 
@@ -308,4 +343,14 @@ func (c *GoogleCalendar) Clear() error {
 	wg.Wait()
 	log.Printf("Found and deleted %v events in %v\n", eventCount, time.Since(s))
 	return nil
+}
+
+func statusFromColorID(colorId string) string {
+	switch colorId {
+	case "4":
+		return "aflyst"
+	case "2":
+		return "ændret"
+	}
+	return "uændret"
 }

@@ -137,7 +137,7 @@ func (*Lectio) GetSchedule(c *colly.Collector, week int) (modules map[string]Mod
 				teacher = strings.TrimSpace(teacher)
 				continue
 			}
-			if strings.Contains(line, "Lokale: ") {
+			if strings.Contains(line, "Lokale: ") || strings.Contains(line, "Lokaler: ") {
 				_, room, _ = strings.Cut(line, ": ")
 				room = strings.TrimSpace(room)
 				continue
@@ -169,7 +169,7 @@ func (*Lectio) GetSchedule(c *colly.Collector, week int) (modules map[string]Mod
 			EndDate:      endDate,
 			Room:         room,
 			Teacher:      teacher,
-			Homework:     homework,
+			Homework:     "homework",
 			ModuleStatus: status,
 		}
 
