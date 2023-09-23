@@ -1,4 +1,4 @@
-package main
+package lectigo
 
 import (
 	"encoding/json"
