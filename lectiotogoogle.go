@@ -1,4 +1,4 @@
-package lectigo
+package main
 
 import (
 	"flag"
@@ -6,6 +6,8 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
+	"golang.org/x/oauth2/google"
+	"google.golang.org/api/calendar/v3"
 )
 
 // The login information of the user. This should be stored in a "secrets.json" file, and should have the following variables: username, password, schoolID, calendarID
@@ -16,7 +18,22 @@ func main() {
 	var envVarExists bool
 	var googleCalendarID string
 
-	err := godotenv.Load(".env")
+	bytes, err := os.ReadFile("credentials.json")
+	if err != nil {
+		log.Fatalf("Could not read client secret file: %v", err)
+	}
+
+	config, err := google.ConfigFromJSON(bytes, calendar.CalendarScope)
+
+	config.RedirectURL = "http://localhost:3000/oauth/token"
+
+	if err != nil {
+		log.Fatalf("Unable to parse client secret file to config: %v", err)
+	}
+
+	client := *GetClient(config)
+
+	err = godotenv.Load(".env")
 	if err != nil {
 		log.Fatalf("Could not load .env file: %v\n", err)
 	}
@@ -56,7 +73,7 @@ func main() {
 	case "sync":
 		log.Printf("Syncing Google Calendar for the next %v weeks...\n", *weekCount)
 		l = NewLectio(lectioLoginInfo)                       // Creates a new Lectio client
-		c = NewGoogleCalendar(googleCalendarID)              // Creates a new Google Calendar client
+		c = NewGoogleCalendar(&client, googleCalendarID)     // Creates a new Google Calendar client
 		lectioModules, err := l.GetScheduleWeeks(*weekCount) // Gets the modules from the Lectio schedule
 		if err != nil {
 			log.Fatalf("Could not get the weekly schedule: %v\n", err)
@@ -73,7 +90,7 @@ func main() {
 	// Create Google Calendar client and clear the calendar
 	case "clear":
 		log.Printf("Clearing Google Calendar...\n")
-		c = NewGoogleCalendar(googleCalendarID) // Creates a new Google Calendar client
+		c = NewGoogleCalendar(&client, googleCalendarID) // Creates a new Google Calendar client
 		err := c.Clear()
 		if err != nil {
 			log.Fatalf("Could not clear the Google Calendar: %v\n", err)

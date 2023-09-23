@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
 	"google.golang.org/api/calendar/v3"
 	"google.golang.org/api/option"
 )
@@ -23,46 +22,32 @@ type GoogleCalendar struct {
 	l       *log.Logger
 }
 
-func NewGoogleCalendar(id string) *GoogleCalendar {
+func NewGoogleCalendar(client *http.Client, calendarID string) *GoogleCalendar {
 	ctx := context.Background()
 
-	bytes, err := os.ReadFile("credentials.json")
-	if err != nil {
-		log.Fatalf("Could not read client secret file: %v", err)
-	}
-
-	config, err := google.ConfigFromJSON(bytes, calendar.CalendarScope)
-
-	config.RedirectURL = "http://localhost:3000/oauth/token"
-
-	if err != nil {
-		log.Fatalf("Unable to parse client secret file to config: %v", err)
-	}
-
-	client := *getClient(config)
-	service, err := calendar.NewService(ctx, option.WithHTTPClient(&client))
+	service, err := calendar.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
 		log.Fatalf("Could not get Calendar client: %v", err)
 	}
 
 	return &GoogleCalendar{
 		Service: service,
-		ID:      id,
+		ID:      calendarID,
 		l:       log.New(os.Stdout, "google-calendar ", log.LstdFlags),
 	}
 }
 
-func getClient(config *oauth2.Config) *http.Client {
+func GetClient(config *oauth2.Config) *http.Client {
 	tokenFile := "token.json"
 	token, err := tokenFromFile(tokenFile)
 	if err != nil {
-		token = getTokenFromWeb(config)
+		token = GetTokenFromWeb(config)
 		saveToken(tokenFile, token)
 	}
 	return config.Client(context.Background(), token)
 }
 
-func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
+func GetTokenFromWeb(config *oauth2.Config) *oauth2.Token {
 	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
 
 	fmt.Printf("Go to the following link in your browser and type the authorization code %q\n", authURL)
