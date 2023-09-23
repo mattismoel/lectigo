@@ -17,10 +17,6 @@ import (
 	"google.golang.org/api/calendar/v3"
 )
 
-type App struct {
-	Client *http.Client
-}
-
 type AuthenticityToken struct {
 	Token string
 }
@@ -45,7 +41,6 @@ type Module struct {
 type Lectio struct {
 	Client    *http.Client
 	Collector *colly.Collector
-	//LoginInfo *LectioLoginInfo
 }
 
 func NewLectio(loginInfo *LectioLoginInfo) *Lectio {
