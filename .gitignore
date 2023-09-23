@@ -10,3 +10,4 @@ bin/lectigo-linux
 bin/lectigo-windows
 .env
 service_credentials.json 
+lectiotogooglecalendar.go
