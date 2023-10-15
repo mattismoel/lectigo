@@ -17,7 +17,6 @@ func main() {
 	}
 
 	config, err := google.ConfigFromJSON(bytes, calendar.CalendarScope)
-
 	config.RedirectURL = "http://localhost:3000/oauth/token"
 
 	if err != nil {
@@ -36,5 +35,4 @@ func main() {
 	c := NewGoogleCalendar(&client, "googleCalendarID")
 
 	fmt.Println(l, c)
-
 }
