@@ -41,7 +41,6 @@ type AuthenticityToken struct {
 	Token string
 }
 
-
 func (m *Module) ToGoogleEvent() *GoogleEvent {
 	calendarColorID := ""
 	switch m.ModuleStatus {
@@ -51,11 +50,11 @@ func (m *Module) ToGoogleEvent() *GoogleEvent {
 		calendarColorID = "2"
 	}
 
-	description := fmt.Sprintf("%s\n%s", m.Teacher, m.Homework)
+	// description := fmt.Sprintf("%s\n%s", m.Teacher, m.Homework)
 	return &GoogleEvent{
 		event: &calendar.Event{
 			Id:          "lec" + m.Id,
-			Description: description,
+			Description: "",
 			Start: &calendar.EventDateTime{
 				DateTime: m.StartDate.Format(time.RFC3339),
 				TimeZone: "Europe/Copenhagen",
@@ -73,19 +72,12 @@ func (m *Module) ToGoogleEvent() *GoogleEvent {
 }
 
 func (l *Lectio) GetSchedule(week int) (modules map[string]Module, err error) {
-	// var err error
-	// var wg sync.WaitGroup
 	startTime := time.Now()
-	defer fmt.Printf("Took %v\n", time.Since(startTime))
+	defer fmt.Printf("Got Lectio schedule for week %v in %v\n", week, time.Since(startTime))
 	modules = make(map[string]Module)
-	// mu := sync.Mutex{}
 
 	l.Collector.OnHTML("a.s2skemabrik.s2brik", func(e *colly.HTMLElement) {
-		// wg.Add(1)
-		// go func() {
-
 		addInfo := e.Attr("data-additionalinfo")
-
 		lines := strings.Split(addInfo, "\n")
 
 		var id, title, teacher, room, homework string
@@ -139,7 +131,6 @@ func (l *Lectio) GetSchedule(week int) (modules map[string]Module, err error) {
 				startDate, endDate, _ = util.ConvertLectioDate(line)
 				continue
 			}
-
 		}
 
 		module := Module{
@@ -148,7 +139,7 @@ func (l *Lectio) GetSchedule(week int) (modules map[string]Module, err error) {
 			StartDate:    startDate,
 			EndDate:      endDate,
 			Room:         room,
-			Teacher:      teacher,
+			Teacher:      "",
 			Homework:     homework,
 			ModuleStatus: status,
 		}
@@ -160,7 +151,6 @@ func (l *Lectio) GetSchedule(week int) (modules map[string]Module, err error) {
 	scheduleUrl := fmt.Sprintf("https://www.lectio.dk/lectio/143/SkemaNy.aspx?week=%v", weekString)
 	l.Collector.Visit(scheduleUrl)
 	return modules, nil
-
 }
 
 func (l *Lectio) GetScheduleWeeks(weekCount int) (modules map[string]Module, err error) {
@@ -168,18 +158,15 @@ func (l *Lectio) GetScheduleWeeks(weekCount int) (modules map[string]Module, err
 	_, week := time.Now().ISOWeek()
 
 	for i := 0; i < weekCount; i++ {
-		weekModules, err := l.GetSchedule(week+i)
+		weekModules, err := l.GetSchedule(week + i)
 		if err != nil {
 			return nil, err
 		}
 		maps.Copy(modules, weekModules)
 	}
 
-	// modules := l.GetSchedule(l.Collector, week)
-	// wg.Wait()
 	return modules, nil
 }
-
 
 func GetToken(loginUrl string, client *http.Client) AuthenticityToken {
 	response, err := client.Get(loginUrl)
@@ -199,4 +186,14 @@ func GetToken(loginUrl string, client *http.Client) AuthenticityToken {
 
 	authenticityToken := AuthenticityToken{Token: token}
 	return authenticityToken
+}
+
+func (m1 *Module) Equals(m2 *Module) bool {
+	b := m1.Id == m2.Id && 
+	m1.StartDate.Equal(m2.StartDate) && 
+	m1.EndDate.Equal(m2.EndDate) && 
+	m1.ModuleStatus == m2.ModuleStatus && 
+	m1.Room == m2.Room
+
+	return b
 }

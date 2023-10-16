@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 	"time"
+
 )
 
 func MergeMaps[K comparable, V any](m1 map[K]V, m2 map[K]V) map[K]V {
@@ -50,17 +51,30 @@ func PrettyPrint(i interface{}) string {
 	return string(s)
 }
 
+
 // Gets the date of the monday of the current week. If
+//
+//	func GetMonday() (time.Time, error) {
+//		location, err := time.LoadLocation("Europe/Copenhagen")
+//		if err != nil {
+//			return time.Time{}, err
+//		}
+//		t := time.Now()
+//		off := time.Now().Weekday() - time.Monday
+//		return time.Date(t.Year(), t.Month(), t.Day()-int(off), 0, 0, 0, 0, location), nil
+//	}
 func GetMonday() (time.Time, error) {
 	location, err := time.LoadLocation("Europe/Copenhagen")
 	if err != nil {
 		return time.Time{}, err
 	}
 	t := time.Now()
-	off := time.Now().Weekday() - time.Monday
-	return time.Date(t.Year(), t.Month(), t.Day()-int(off), 0, 0, 0, 0, location), nil
+	off := int(t.Weekday()) - int(time.Monday)
+	if off < 0 {
+		off += 7 // Adjust if today is Sunday or earlier in the week
+	}
+	return time.Date(t.Year(), t.Month(), t.Day()-off, 0, 0, 0, 0, location), nil
 }
-
 
 func StatusFromColorID(colorId string) string {
 	switch colorId {
@@ -107,4 +121,3 @@ func ConvertLectioDate(s string) (startTime time.Time, endTime time.Time, err er
 
 	return startTime, endTime, nil
 }
-

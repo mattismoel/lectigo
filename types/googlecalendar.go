@@ -24,7 +24,6 @@ type GoogleEvent struct {
 // Returns all modules from Google Calendar.
 func (c *GoogleCalendar) GetModules(weekCount int) (map[string]*calendar.Event, error) {
 	googleCalModules := make(map[string]*calendar.Event)
-	s := time.Now()
 	pageToken := ""
 	eventCount := 0
 
@@ -35,7 +34,7 @@ func (c *GoogleCalendar) GetModules(weekCount int) (map[string]*calendar.Event, 
 	if err != nil {
 		return nil, err
 	}
-	endDate := startDate.AddDate(0, 0, 7*weekCount).Add(-24 * time.Hour)
+	endDate := startDate.AddDate(0, 0, 7*weekCount)
 	req := c.Service.Events.List(c.ID).ShowDeleted(true).TimeMin(startDate.Format(time.RFC3339)).TimeMax(endDate.Format(time.RFC3339))
 	for {
 		if pageToken != "" {
@@ -46,7 +45,6 @@ func (c *GoogleCalendar) GetModules(weekCount int) (map[string]*calendar.Event, 
 			return nil, err
 		}
 		for _, item := range r.Items {
-
 			if strings.HasPrefix(item.Id, "lec") {
 				wg.Add(1)
 				go func(item *calendar.Event) {
@@ -65,23 +63,6 @@ func (c *GoogleCalendar) GetModules(weekCount int) (map[string]*calendar.Event, 
 		}
 	}
 	wg.Wait()
-	log.Printf("Found %v events in %v\n", eventCount, time.Since(s))
-	for key := range googleCalModules {
-		_, err := c.Service.Events.Patch(c.ID, key, &calendar.Event{
-			Start: &calendar.EventDateTime{
-				DateTime: time.Now().Format(time.RFC3339),
-				TimeZone: "Europe/Copenhagen",
-			},
-
-			End: &calendar.EventDateTime{
-				DateTime: time.Now().Add(1 * time.Hour).Format(time.RFC3339),
-				TimeZone: "Europe/Copenhagen",
-			},
-		}).Do()
-		if err != nil {
-			log.Fatalf("Could not update event with id %v: %v\n", key, err)
-		}
-	}
 	return googleCalModules, nil
 }
 
@@ -101,47 +82,30 @@ func (c *GoogleCalendar) UpdateCalendar(lectioModules map[string]Module, googleE
 		go func(lKey string, lModule Module) error {
 			defer wg.Done()
 			// If Lectio module is in Google Calendar
-			gEvent := lModule.ToGoogleEvent()
 			key := "lec" + lKey
-			// fmt.Printf("_____\nid: %v\nstatus: %v\n_____\n", key, gEvent.Status)
 			if _, ok := googleEvents[key]; ok {
-				startDate, err := time.Parse(time.RFC3339, gEvent.event.Start.DateTime)
-				if err != nil {
-					return err
+				googleEvent := &GoogleEvent{
+					event: googleEvents[key],
 				}
+				googleModule := googleEvent.ToModule()
+				needsUpdate := !lModule.Equals(googleModule)
 
-				monday, err := util.GetMonday()
-
-				outOfBounds := startDate.Before(monday)
-
-				// fmt.Printf("%v", PrettyPrint(googleEvent))
-				// fmt.Println("in calendar", gEvent.Id, gEvent.Start.DateTime)
-				isCancelled := gEvent.event.Status == "cancelled"
-				needsUpdate := gEvent.ToModule() != lModule
-
-				if isCancelled {
-					fmt.Printf("Cancelled: %v\n", gEvent.event.Id)
-				}
 				if needsUpdate {
-					fmt.Printf("Needs update: %v\n", gEvent.event.Id)
-				}
-				if (isCancelled || needsUpdate) && !outOfBounds {
-					c.Logger.Printf("Attempting to update %v\n", gEvent.event.Id)
-					_, err := c.Service.Events.Update(c.ID, gEvent.event.Id, gEvent.event).Do()
+					c.Logger.Printf("Attempting to update %v\n", googleEvent.event.Id)
+					lectioEvent := lModule.ToGoogleEvent()
+					_, err := c.Service.Events.Update(c.ID, googleEvent.event.Id, lectioEvent.event).Do()
 					if err != nil {
 						return err
 					}
 					updated++
+				} else {
 					return nil
 				}
-				return nil
 			} else {
-				// event := lectioModuleToGoogleEvent(&lModule)
-				// fmt.Printf("status: %v\n_____\n", gEvent.Status)
-				// fmt.Println("not in calendar", key, gEvent.Start.DateTime)
-				_, err := c.Service.Events.Insert(c.ID, gEvent.event).Do()
+				googleEvent := lModule.ToGoogleEvent()
+				_, err := c.Service.Events.Insert(c.ID, googleEvent.event).Do()
 				if err != nil {
-					log.Fatalf("DID NOT INSERT EVENT %v: %v\n", gEvent.event.Id, err)
+					log.Fatalf("DID NOT INSERT EVENT %v: %v\n", googleEvent.event.Id, err)
 					return err
 				}
 				inserted++
@@ -176,14 +140,15 @@ func (c *GoogleCalendar) UpdateCalendar(lectioModules map[string]Module, googleE
 
 	// Print statements for displaying results.
 	// Prints missing and extra modules in the Google Calendar
-	fmt.Println()
-	fmt.Println("RESULTS", strings.Repeat("=", 23))
-	fmt.Printf("Updated %v events in Google Calendar\n", updated)
-	fmt.Printf("Deleted %v events from Google Calendar\n", deleted)
-	fmt.Printf("Inserted %v events into Google Calendar\n", inserted)
-	fmt.Println(strings.Repeat("=", 31))
-	fmt.Printf("\nThe execution took %v\n\n", time.Since(startTime))
+	fmt.Printf(`
+RESULTS ==============================
+UPDATED %v events in Google Calendar
+INSERTED %v events into Google Calendar
+DELETED %v events from Google Calendar
 
+Execution took %v
+======================================`,
+		updated, inserted, deleted, time.Since(startTime))
 	return nil
 }
 
@@ -228,42 +193,46 @@ func (c *GoogleCalendar) Clear() error {
 	return nil
 }
 
-func (c *GoogleCalendar) AddModules(modules map[string]Module) {
-	startTime := time.Now()
-	var updateCount, insertCount int
-	wg := sync.WaitGroup{}
+// func (c *GoogleCalendar) AddModules(modules map[string]Module) {
+// 	startTime := time.Now()
+// 	var updateCount, insertCount int
+// 	wg := sync.WaitGroup{}
+//
+// 	for key, module := range modules {
+// 		wg.Add(1)
+// 		go func(key string, module Module) {
+// 			defer wg.Done()
+// 			calEvent := module.ToGoogleEvent()
+// 			_, err := c.Service.Events.Insert(c.ID, calEvent.event).Do()
+// 			if err != nil {
+// 				c.Logger.Fatalf("Could not insert missing event: %v\n", err)
+// 			}
+// 			insertCount++
+// 			c.Logger.Printf("Inserted new event\n")
+// 		}(key, module)
+// 	}
+// 	wg.Wait()
+//
+// 	// If no modules have been updated or inserted
+// 	if insertCount == 0 && updateCount == 0 {
+// 		log.Printf("Nothing to do. Lectio schedule is up to date with Google Calendar.\n")
+// 		return
+// 	}
+//
+// 	log.Printf("Added %v modules and updated %v modules in Google Calendar in %v\n", insertCount, updateCount, time.Since(startTime))
+// }
 
-	for key, module := range modules {
-		wg.Add(1)
-		go func(key string, module Module) {
-			defer wg.Done()
-			calEvent := module.ToGoogleEvent()
-			_, err := c.Service.Events.Insert(c.ID, calEvent.event).Do()
-			if err != nil {
-				c.Logger.Fatalf("Could not insert missing event: %v\n", err)
-			}
-			insertCount++
-			c.Logger.Printf("Inserted new event\n")
-		}(key, module)
+func (e *GoogleEvent) ToModule() *Module {
+	location, err := time.LoadLocation("Europe/Copenhagen")
+	if err != nil {
+		log.Fatalf("Could not load location: %v\n", err)
 	}
-	wg.Wait()
-
-	// If no modules have been updated or inserted
-	if insertCount == 0 && updateCount == 0 {
-		log.Printf("Nothing to do. Lectio schedule is up to date with Google Calendar.\n")
-		return
-	}
-
-	log.Printf("Added %v modules and updated %v modules in Google Calendar in %v\n", insertCount, updateCount, time.Since(startTime))
-}
-
-func (e *GoogleEvent) ToModule() Module {
-	start, err := time.Parse(time.RFC3339, e.event.Start.DateTime)
+	start, err := time.ParseInLocation(time.RFC3339, e.event.Start.DateTime, location)
 	if err != nil {
 		log.Fatalf("Could not parse start date: %v\n", err)
 	}
 
-	end, err := time.Parse(time.RFC3339, e.event.End.DateTime)
+	end, err := time.ParseInLocation(time.RFC3339, e.event.End.DateTime, location)
 	if err != nil {
 		log.Fatalf("Could not parse end date: %v\n", err)
 	}
@@ -271,13 +240,13 @@ func (e *GoogleEvent) ToModule() Module {
 	homework := ""
 	// fmt.Println(event.Description)
 
-	return Module{
+	return &Module{
 		Id:           strings.TrimPrefix(e.event.Id, "lec"),
 		Title:        e.event.Summary,
 		StartDate:    start,
 		EndDate:      end,
 		Room:         e.event.Location,
-		Teacher:      e.event.Description,
+		Teacher:      "",
 		Homework:     homework,
 		ModuleStatus: util.StatusFromColorID(e.event.ColorId),
 	}
