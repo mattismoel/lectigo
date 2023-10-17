@@ -3,7 +3,6 @@ package lectio
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"net/http/cookiejar"
 	"os"
@@ -14,15 +13,21 @@ import (
 	"github.com/mattismoel/lectigo/types"
 )
 
-func New(loginInfo *types.LectioLoginInfo) *types.Lectio {
+func New(loginInfo *types.LectioLoginInfo) (*types.Lectio, error) {
 	loginUrl := fmt.Sprintf("https://www.lectio.dk/lectio/%s/login.aspx", loginInfo.SchoolID)
-	jar, _ := cookiejar.New(nil)
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		return nil, err
+	}
 	client := &http.Client{Jar: jar}
 	collector := colly.NewCollector(colly.AllowedDomains("lectio.dk", "www.lectio.dk"))
-	authToken := types.GetToken(loginUrl, client)
+	authToken, err := types.GetToken(loginUrl, client)
+	if err != nil {
+		return nil, err
+	}
 
 	// Attempts to log the user in with the given login information
-	err := collector.Post(loginUrl, map[string]string{
+	err = collector.Post(loginUrl, map[string]string{
 		"m$Content$username": loginInfo.Username,
 		"m$Content$password": loginInfo.Password,
 		"__EVENTVALIDATION":  authToken.Token,
@@ -33,27 +38,31 @@ func New(loginInfo *types.LectioLoginInfo) *types.Lectio {
 	})
 
 	if err != nil {
-		log.Fatal("Could not log the user in. Please check that the login information is correct", err)
+		return nil, err
 	}
 
-	return &types.Lectio{
+	lectio := &types.Lectio{
 		Client:    client,
 		Collector: collector,
 		//LoginInfo: loginInfo,
 	}
+	return lectio, nil
 }
 
-func ModulesToJSON(modules map[string]types.Module, filename string) {
+
+func ModulesToJSON(modules map[string]types.Module, filename string) error {
 	filename, _ = strings.CutSuffix(filename, ".json")
 	b, err := json.Marshal(modules)
 	if err != nil {
-		log.Fatal("Could not marshal JSON.", err)
+		return err
 	}
 
 	err = os.WriteFile(fmt.Sprintf("%s.json", filename), b, 0644)
 	if err != nil {
-		log.Fatal("Could not write to file", err)
+		return err
 	}
+
+	return nil
 }
 
 func ConvertLectioDate(s string) (startTime time.Time, endTime time.Time, err error) {

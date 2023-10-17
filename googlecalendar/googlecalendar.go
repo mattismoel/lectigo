@@ -14,32 +14,36 @@ import (
 	"google.golang.org/api/option"
 )
 
-func New(client *http.Client, calendarID string) *types.GoogleCalendar {
+func New(client *http.Client, calendarID string) (*types.GoogleCalendar, error) {
 	ctx := context.Background()
 
 	service, err := calendar.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
-		log.Fatalf("Could not get Calendar client: %v", err)
+		return nil, err
 	}
-
-	return &types.GoogleCalendar{
+	
+	calendar := &types.GoogleCalendar{
 		Service: service,
 		ID:      calendarID,
 		Logger:  log.New(os.Stdout, "google-calendar ", log.LstdFlags),
 	}
+	return calendar, nil
 }
 
-func GetClient(config *oauth2.Config) *http.Client {
+func GetClient(config *oauth2.Config) (*http.Client, error) {
 	tokenFile := "token.json"
 	token, err := tokenFromFile(tokenFile)
 	if err != nil {
-		token = getTokenFromWeb(config)
+		token, err = getTokenFromWeb(config)
+		if err != nil {
+			return nil, err
+		}
 		saveToken(tokenFile, token)
 	}
-	return config.Client(context.Background(), token)
+	return config.Client(context.Background(), token), nil
 }
 
-func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
+func getTokenFromWeb(config *oauth2.Config) (*oauth2.Token, error) {
 	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
 
 	fmt.Printf("Go to the following link in your browser and type the authorization code %q\n", authURL)
@@ -52,11 +56,10 @@ func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
 	token, err := config.Exchange(context.TODO(), authCode)
 
 	if err != nil {
-		log.Fatalf("Unable to retrieve token from web: %v\n", err)
+		return nil, err
 	}
 
-	return token
-
+	return token, nil
 }
 
 func tokenFromFile(file string) (*oauth2.Token, error) {
@@ -71,13 +74,16 @@ func tokenFromFile(file string) (*oauth2.Token, error) {
 	return token, err
 }
 
-func saveToken(path string, token *oauth2.Token) {
+func saveToken(path string, token *oauth2.Token) error {
 	fmt.Printf("Saving credential file to: %s\n", path)
 	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
-
 	if err != nil {
-		log.Fatalf("Unable to cache oauth token: %v", err)
+		return err
 	}
 	defer f.Close()
-	json.NewEncoder(f).Encode(token)
+	err = json.NewEncoder(f).Encode(token)
+	if err != nil {
+		return err
+	}
+	return nil
 }

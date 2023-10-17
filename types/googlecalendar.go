@@ -87,7 +87,10 @@ func (c *GoogleCalendar) UpdateCalendar(lectioModules map[string]Module, googleE
 				googleEvent := &GoogleEvent{
 					event: googleEvents[key],
 				}
-				googleModule := googleEvent.ToModule()
+				googleModule, err := googleEvent.ToModule()
+				if err != nil {
+					return err
+				}
 				needsUpdate := !lModule.Equals(googleModule)
 
 				if needsUpdate {
@@ -105,7 +108,6 @@ func (c *GoogleCalendar) UpdateCalendar(lectioModules map[string]Module, googleE
 				googleEvent := lModule.ToGoogleEvent()
 				_, err := c.Service.Events.Insert(c.ID, googleEvent.event).Do()
 				if err != nil {
-					log.Fatalf("DID NOT INSERT EVENT %v: %v\n", googleEvent.event.Id, err)
 					return err
 				}
 				inserted++
@@ -172,13 +174,15 @@ func (c *GoogleCalendar) Clear() error {
 		for _, item := range r.Items {
 			if strings.Contains(item.Id, "lec") {
 				wg.Add(1)
-				go func(item *calendar.Event) {
+				go func(item *calendar.Event) error {
 					defer wg.Done()
 					err := c.Service.Events.Delete(c.ID, item.Id).Do()
 					if err != nil {
-						log.Fatalf("Could not delete event %v: %v\n", item.Id, err)
+						return err
+						// log.Fatalf("Could not delete event %v: %v\n", item.Id, err)
 					}
 					eventCount++
+					return nil
 				}(item)
 			}
 		}
@@ -222,25 +226,28 @@ func (c *GoogleCalendar) Clear() error {
 // 	log.Printf("Added %v modules and updated %v modules in Google Calendar in %v\n", insertCount, updateCount, time.Since(startTime))
 // }
 
-func (e *GoogleEvent) ToModule() *Module {
+func (e *GoogleEvent) ToModule() (*Module, error) {
 	location, err := time.LoadLocation("Europe/Copenhagen")
 	if err != nil {
-		log.Fatalf("Could not load location: %v\n", err)
+		return nil, err
+		// log.Fatalf("Could not load location: %v\n", err)
 	}
 	start, err := time.ParseInLocation(time.RFC3339, e.event.Start.DateTime, location)
 	if err != nil {
-		log.Fatalf("Could not parse start date: %v\n", err)
+		return nil, err
+		// log.Fatalf("Could not parse start date: %v\n", err)
 	}
 
 	end, err := time.ParseInLocation(time.RFC3339, e.event.End.DateTime, location)
 	if err != nil {
-		log.Fatalf("Could not parse end date: %v\n", err)
+		return nil, err
+		// log.Fatalf("Could not parse end date: %v\n", err)
 	}
 
 	homework := ""
 	// fmt.Println(event.Description)
 
-	return &Module{
+	module := &Module{
 		Id:           strings.TrimPrefix(e.event.Id, "lec"),
 		Title:        e.event.Summary,
 		StartDate:    start,
@@ -250,7 +257,10 @@ func (e *GoogleEvent) ToModule() *Module {
 		Homework:     homework,
 		ModuleStatus: util.StatusFromColorID(e.event.ColorId),
 	}
+
+	return module, nil
 }
+
 
 // func (e *GoogleEvent) ToModule(event *calendar.Event) (module *Module, err error) {
 // 	var teacher, homework, status string

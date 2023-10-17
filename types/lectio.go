@@ -2,7 +2,6 @@ package types
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -168,24 +167,26 @@ func (l *Lectio) GetScheduleWeeks(weekCount int) (modules map[string]Module, err
 	return modules, nil
 }
 
-func GetToken(loginUrl string, client *http.Client) AuthenticityToken {
+func GetToken(loginUrl string, client *http.Client) (*AuthenticityToken, error) {
 	response, err := client.Get(loginUrl)
 
 	if err != nil {
-		log.Fatal("Error fetching response: ", err)
+		return nil, err
+		// log.Fatal("Error fetching response: ", err)
 	}
 
 	defer response.Body.Close()
 
 	document, err := goquery.NewDocumentFromReader(response.Body)
 	if err != nil {
-		log.Fatal("Error loading HTTP response body.", err)
+		return nil, err
+		// log.Fatal("Error loading HTTP response body.", err)
 	}
 
 	token, _ := document.Find("input[name=__EVENTVALIDATION]").Attr("value")
 
 	authenticityToken := AuthenticityToken{Token: token}
-	return authenticityToken
+	return &authenticityToken, nil
 }
 
 func (m1 *Module) Equals(m2 *Module) bool {
