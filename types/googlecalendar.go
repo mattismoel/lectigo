@@ -92,8 +92,9 @@ func (c *GoogleCalendar) UpdateCalendar(lectioModules map[string]Module, googleE
 					return err
 				}
 				needsUpdate := !lModule.Equals(googleModule)
+				isCancelled := googleEvent.event.Status == "cancelled"
 
-				if needsUpdate {
+				if (needsUpdate || isCancelled) {
 					c.Logger.Printf("Attempting to update %v\n", googleEvent.event.Id)
 					lectioEvent := lModule.ToGoogleEvent()
 					_, err := c.Service.Events.Update(c.ID, googleEvent.event.Id, lectioEvent.event).Do()
