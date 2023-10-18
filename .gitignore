@@ -11,3 +11,4 @@ bin/lectigo-windows
 .env
 service_credentials.json 
 lectiotogoogle.go
+icalendar.ics
