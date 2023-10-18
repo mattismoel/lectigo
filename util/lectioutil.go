@@ -1,4 +1,4 @@
-package lectioutil
+package util
 
 import (
 	"strings"

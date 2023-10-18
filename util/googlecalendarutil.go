@@ -1,4 +1,4 @@
-package googlecalendarutil
+package util
 
 import (
 	"context"
