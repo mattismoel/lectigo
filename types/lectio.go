@@ -70,6 +70,19 @@ func (m *Module) ToGoogleEvent() *GoogleEvent {
 	}
 }
 
+func (m *Module) ToICalEvent() *ICalEvent {
+	event := &ICalEvent{
+		UID: m.Id,
+		StartDate: m.StartDate,
+		EndDate: m.EndDate,
+		Summary: m.Title,
+		Location: m.Room,
+		Description: m.Homework,
+	}
+
+	return event
+}
+
 func (l *Lectio) GetSchedule(week int) (modules map[string]Module, err error) {
 	startTime := time.Now()
 	defer fmt.Printf("Got Lectio schedule for week %v in %v\n", week, time.Since(startTime))

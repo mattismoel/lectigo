@@ -1,10 +1,13 @@
 package util
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
+	"io"
+	"strconv"
 	"strings"
 	"time"
-
 )
 
 func MergeMaps[K comparable, V any](m1 map[K]V, m2 map[K]V) map[K]V {
@@ -50,7 +53,6 @@ func PrettyPrint(i interface{}) string {
 	s, _ := json.MarshalIndent(i, "", "\t")
 	return string(s)
 }
-
 
 // Gets the date of the monday of the current week. If
 //
@@ -120,4 +122,56 @@ func ConvertLectioDate(s string) (startTime time.Time, endTime time.Time, err er
 	}
 
 	return startTime, endTime, nil
+}
+
+func TimeToICalTimestamp(t *time.Time) (string, error) {
+	year := PadInt(t.Year(), 2)
+	month := PadInt(int(t.Month()), 2)
+	day := PadInt(t.Day(), 2)
+	hour := PadInt(t.Hour(), 2)
+	minute := PadInt(t.Minute(), 2)
+
+	str := fmt.Sprintf("%s%s%sT%s%s00Z", year, month, day, hour, minute)
+	return str, nil
+}
+
+
+func PadInt(i int, count int) string {
+	layout := fmt.Sprintf("%%0%dd", count)
+	fmt.Println(layout)
+	return fmt.Sprintf(layout, i)
+}
+
+func ICalTimestampToTime (stamp string) (*time.Time, error) {
+	// "0 1 2 3 | 45 | 67 | 8 | 9 10 | 11 12 | 13 14 | 15"
+	// "1 9 9 7 | 07 | 15 | T | 0 4  | 0  0  | 0  0  | Z"
+
+	year, err := strconv.Atoi(stamp[:4])
+	if err != nil {
+		return &time.Time{}, err
+	}
+	month, err := strconv.Atoi(stamp[4:6])
+	if err != nil {
+		return &time.Time{}, err
+	}
+	day, err := strconv.Atoi(stamp[6:8])
+	if err != nil {
+		return &time.Time{}, err
+	}
+	hour, err := strconv.Atoi(stamp[9:11])
+	if err != nil {
+		return &time.Time{}, err
+	}
+	minute, err := strconv.Atoi(stamp[11:13])
+	if err != nil {
+		return &time.Time{}, err
+	}
+	second, err := strconv.Atoi(stamp[13:15])
+	if err != nil {
+		return &time.Time{}, err
+	}
+
+	location, err := time.LoadLocation("Europe/Copenhagen")
+	date := time.Date(year, time.Month(month), day, hour, minute, second, 0, location)
+	return &date, err
 }
