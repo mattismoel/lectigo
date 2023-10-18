@@ -12,3 +12,4 @@ bin/lectigo-windows
 service_credentials.json 
 lectiotogoogle.go
 icalendar.ics
+go.sum

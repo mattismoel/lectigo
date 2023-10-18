@@ -4,55 +4,27 @@ import (
 	"log"
 	"time"
 
+	"github.com/mattismoel/lectigo/icalendar"
 	"github.com/mattismoel/lectigo/types"
 )
 
-
-
 func main () {	
-	ical := &types.ICalendar{
-		Coorperation: "LectioSync",
-		ProductName: "LectioSync",
-	}
-
+	ical := icalendar.New("LectioSync", "LectioSync", "./icalendar.ics")
 	event := &types.ICalEvent{
 		UID: "11223344@example.com",
 		Summary: "Test",
 		StartDate: time.Now(),
 		EndDate: time.Now().Add(1 * time.Hour),
-		Location: &types.Location{
-			Lon: 55,
-			Lat: 44,
-		},
+		Location: "06",
+		Description: "Lorem ipsum dolor sit amet, qui minim labore adipisicing minim sint cillum sint consectetur cupidatat.",
 	}
 	
 	for i := 0; i < 10; i++ {
 		ical.Events = append(ical.Events, event)
 	}
 
-	err := ical.WriteTo("./icalendar.ics")
+	err := ical.Update()
 	if err != nil {
 		log.Fatalf("could not write to icalendar.ics: %v\n", err)
 	}
-
-	// f, err := icalendar.CreateICalendar("./icalendar.ics")
-	// if err != nil {
-	// 	log.Fatalf("could not write icalendar file: %v\n", err)
-	// }
-	// log.Println(f)
-	// t := "19970715T040000Z"
-	// date, err := util.ICalTimestampToTime(t)
-	// if err != nil {
-	// 	log.Fatalf("could not parse ical timestamp: %v\n", err)
-	// }
-	//
-	// str, err := util.TimeToICalTimestamp(date)
-	// if err != nil {
-	// 	log.Fatalf("could not parse date to timestamp: %v\n", err)
-	// }
-	
-	// fmt.Println(date)
-	// fmt.Println(str)
-	// fmt.Println(t)
-
 }
