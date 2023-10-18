@@ -12,6 +12,7 @@ import (
 	"github.com/mattismoel/lectigo/util"
 	"golang.org/x/exp/maps"
 	"google.golang.org/api/calendar/v3"
+	icaltypes "github.com/mattismoel/icalendar/types"
 )
 
 type LectioLoginInfo struct {
@@ -72,8 +73,8 @@ func (m *Module) ToGoogleEvent() *GoogleEvent {
 }
 
 // Converts a Lectio module to an ICalEvent struct
-func (m *Module) ToICalEvent() *ICalEvent {
-	event := &ICalEvent{
+func (m *Module) ToICalEvent() *icaltypes.ICalEvent {
+	event := &icaltypes.ICalEvent{
 		UID: m.Id,
 		StartDate: m.StartDate,
 		EndDate: m.EndDate,
