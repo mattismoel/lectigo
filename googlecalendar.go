@@ -1,14 +1,18 @@
-package types
+package lectigo
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/mattismoel/lectigo/util"
 	"google.golang.org/api/calendar/v3"
+	"google.golang.org/api/option"
 )
 
 type GoogleCalendar struct {
@@ -20,6 +24,24 @@ type GoogleCalendar struct {
 type GoogleEvent struct {
 	event *calendar.Event
 }
+
+// Creates a new Google Calendar struct instance
+func NewGoogleCalendar(client *http.Client, calendarID string) (*GoogleCalendar, error) {
+	ctx := context.Background()
+
+	service, err := calendar.NewService(ctx, option.WithHTTPClient(client))
+	if err != nil {
+		return nil, err
+	}
+	
+	calendar := &GoogleCalendar{
+		Service: service,
+		ID:      calendarID,
+		Logger:  log.New(os.Stdout, "google-calendar ", log.LstdFlags),
+	}
+	return calendar, nil
+}
+
 
 // Returns all modules from Google Calendar.
 func (c *GoogleCalendar) GetModules(weekCount int) (map[string]*calendar.Event, error) {

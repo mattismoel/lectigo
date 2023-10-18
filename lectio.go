@@ -1,18 +1,21 @@
-package types
+package lectigo
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gocolly/colly"
+	"github.com/mattismoel/icalendar"
 	"github.com/mattismoel/lectigo/util"
 	"golang.org/x/exp/maps"
 	"google.golang.org/api/calendar/v3"
-	icaltypes "github.com/mattismoel/icalendar/types"
 )
 
 type LectioLoginInfo struct {
@@ -39,6 +42,43 @@ type Module struct {
 
 type AuthenticityToken struct {
 	Token string
+}
+
+// Creates a new instance of a Lectio struct. Generates a token, if not present in root directory.
+func New(loginInfo *LectioLoginInfo) (*Lectio, error) {
+	loginUrl := fmt.Sprintf("https://www.lectio.dk/lectio/%s/login.aspx", loginInfo.SchoolID)
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		return nil, err
+	}
+	client := &http.Client{Jar: jar}
+	collector := colly.NewCollector(colly.AllowedDomains("lectio.dk", "www.lectio.dk"))
+	authToken, err := GetToken(loginUrl, client)
+	if err != nil {
+		return nil, err
+	}
+
+	// Attempts to log the user in with the given login information
+	err = collector.Post(loginUrl, map[string]string{
+		"m$Content$username": loginInfo.Username,
+		"m$Content$password": loginInfo.Password,
+		"__EVENTVALIDATION":  authToken.Token,
+		"__EVENTTARGET":      "m$Content$submitbtn2",
+		"__EVENTARGUMENT":    "",
+		"masterfootervalue":  "X1!ÆØÅ",
+		"LectioPostbackId":   "",
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	lectio := &Lectio{
+		Client:    client,
+		Collector: collector,
+		//LoginInfo: loginInfo,
+	}
+	return lectio, nil
 }
 
 // Converts a Lectio module to a Google Calendar event
@@ -73,8 +113,8 @@ func (m *Module) ToGoogleEvent() *GoogleEvent {
 }
 
 // Converts a Lectio module to an ICalEvent struct
-func (m *Module) ToICalEvent() *icaltypes.ICalEvent {
-	event := &icaltypes.ICalEvent{
+func (m *Module) ToICalEvent() *icalendar.ICalEvent {
+	event := &icalendar.ICalEvent{
 		UID: m.Id,
 		StartDate: m.StartDate,
 		EndDate: m.EndDate,
@@ -217,3 +257,20 @@ func (m1 *Module) Equals(m2 *Module) bool {
 
 	return b
 }
+
+// Converts input Lectio modules to a JSON object at the specified path
+func ModulesToJSON(modules map[string]Module, filename string) error {
+	filename, _ = strings.CutSuffix(filename, ".json")
+	b, err := json.Marshal(modules)
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(fmt.Sprintf("%s.json", filename), b, 0644)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+

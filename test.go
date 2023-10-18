@@ -1,16 +1,15 @@
-package main
+package lectigo
 
 import (
 	"log"
 	"time"
 
-	"github.com/mattismoel/lectigo/icalendar"
-	"github.com/mattismoel/lectigo/types"
+	"github.com/mattismoel/icalendar"
 )
 
 func main () {	
 	ical := icalendar.New("LectioSync", "LectioSync", "./icalendar.ics")
-	event := &types.ICalEvent{
+	event := &icalendar.ICalEvent{
 		UID: "11223344@example.com",
 		Summary: "Test",
 		StartDate: time.Now(),

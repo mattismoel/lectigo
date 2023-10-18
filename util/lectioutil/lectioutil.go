@@ -29,4 +29,3 @@ func ConvertLectioDate(s string) (startTime time.Time, endTime time.Time, err er
 
 	return startTime, endTime, nil
 }
-
