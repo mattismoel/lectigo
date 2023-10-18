@@ -14,6 +14,7 @@ import (
 	"google.golang.org/api/option"
 )
 
+// Creates a new Google Calendar struct instance
 func New(client *http.Client, calendarID string) (*types.GoogleCalendar, error) {
 	ctx := context.Background()
 
@@ -30,6 +31,7 @@ func New(client *http.Client, calendarID string) (*types.GoogleCalendar, error) 
 	return calendar, nil
 }
 
+// Returns the HTTP client from a token.json file, if present
 func GetClient(config *oauth2.Config) (*http.Client, error) {
 	tokenFile := "token.json"
 	token, err := tokenFromFile(tokenFile)

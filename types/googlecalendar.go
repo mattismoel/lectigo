@@ -66,6 +66,7 @@ func (c *GoogleCalendar) GetModules(weekCount int) (map[string]*calendar.Event, 
 	return googleCalModules, nil
 }
 
+// Updates the Google Calendar with the input Lectio modules and Google Calendar events. The modules input should not be filtered, as the functions handles that (input all modules from Lectio and all events from Google Calendar)
 func (c *GoogleCalendar) UpdateCalendar(lectioModules map[string]Module, googleEvents map[string]*calendar.Event) error {
 	var inserted int // For keeping track of inserted events count after execution
 	var updated int  // For keeping track of updated events count after execution
@@ -155,6 +156,7 @@ Execution took %v
 	return nil
 }
 
+// Clears the Google Calendar of Lectigo events
 func (c *GoogleCalendar) Clear() error {
 	s := time.Now()
 	pageToken := ""
@@ -227,6 +229,7 @@ func (c *GoogleCalendar) Clear() error {
 // 	log.Printf("Added %v modules and updated %v modules in Google Calendar in %v\n", insertCount, updateCount, time.Since(startTime))
 // }
 
+// Converts a Google Calendar event to a Lectio module
 func (e *GoogleEvent) ToModule() (*Module, error) {
 	location, err := time.LoadLocation("Europe/Copenhagen")
 	if err != nil {

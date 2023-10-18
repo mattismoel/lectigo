@@ -9,10 +9,8 @@ func ModulesToICalEvents(modules *types.Module) ([]*types.ICalEvent, error) {
 	return nil, nil
 }
 
-// Create
 func ExportICalEvents(path string, events *[]types.ICalEvent) error {
 	// convert ical events to a
 
 	return nil
 }
-

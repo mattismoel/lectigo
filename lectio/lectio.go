@@ -13,6 +13,7 @@ import (
 	"github.com/mattismoel/lectigo/types"
 )
 
+// Creates a new instance of a Lectio struct. Generates a token, if not present in root directory.
 func New(loginInfo *types.LectioLoginInfo) (*types.Lectio, error) {
 	loginUrl := fmt.Sprintf("https://www.lectio.dk/lectio/%s/login.aspx", loginInfo.SchoolID)
 	jar, err := cookiejar.New(nil)
@@ -50,6 +51,7 @@ func New(loginInfo *types.LectioLoginInfo) (*types.Lectio, error) {
 }
 
 
+// Converts input Lectio modules to a JSON object at the specified path
 func ModulesToJSON(modules map[string]types.Module, filename string) error {
 	filename, _ = strings.CutSuffix(filename, ".json")
 	b, err := json.Marshal(modules)
@@ -65,6 +67,7 @@ func ModulesToJSON(modules map[string]types.Module, filename string) error {
 	return nil
 }
 
+// Converts an input string to a start and end DateTime
 func ConvertLectioDate(s string) (startTime time.Time, endTime time.Time, err error) {
 	location, err := time.LoadLocation("Europe/Copenhagen")
 	if err != nil {

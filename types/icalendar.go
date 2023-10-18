@@ -23,6 +23,7 @@ type ICalEvent struct {
 	Description string
 }
 
+// Returns the string representation of an ICalendar struct. This can be input into an .ics file.
 func (e *ICalEvent) ToString() (string, error) {
 	layout := `BEGIN:VEVENT
 UID:%s
@@ -81,4 +82,3 @@ func (c *ICalendar) WriteTo(filepath string) error {
 
 	return nil
 }
-

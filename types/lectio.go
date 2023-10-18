@@ -40,6 +40,7 @@ type AuthenticityToken struct {
 	Token string
 }
 
+// Converts a Lectio module to a Google Calendar event
 func (m *Module) ToGoogleEvent() *GoogleEvent {
 	calendarColorID := ""
 	switch m.ModuleStatus {
@@ -70,6 +71,7 @@ func (m *Module) ToGoogleEvent() *GoogleEvent {
 	}
 }
 
+// Converts a Lectio module to an ICalEvent struct
 func (m *Module) ToICalEvent() *ICalEvent {
 	event := &ICalEvent{
 		UID: m.Id,
@@ -83,6 +85,7 @@ func (m *Module) ToICalEvent() *ICalEvent {
 	return event
 }
 
+// Gets the Lectio schedule of a specified week number.
 func (l *Lectio) GetSchedule(week int) (modules map[string]Module, err error) {
 	startTime := time.Now()
 	defer fmt.Printf("Got Lectio schedule for week %v in %v\n", week, time.Since(startTime))
@@ -165,6 +168,7 @@ func (l *Lectio) GetSchedule(week int) (modules map[string]Module, err error) {
 	return modules, nil
 }
 
+// Gets the Lectio schedule from the current weeks and weekCount weeks ahead.
 func (l *Lectio) GetScheduleWeeks(weekCount int) (modules map[string]Module, err error) {
 	modules = make(map[string]Module)
 	_, week := time.Now().ISOWeek()
@@ -202,6 +206,7 @@ func GetToken(loginUrl string, client *http.Client) (*AuthenticityToken, error) 
 	return &authenticityToken, nil
 }
 
+// Checks if two Lectio modules are equal
 func (m1 *Module) Equals(m2 *Module) bool {
 	b := m1.Id == m2.Id && 
 	m1.StartDate.Equal(m2.StartDate) && 
