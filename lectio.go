@@ -45,7 +45,7 @@ type AuthenticityToken struct {
 }
 
 // Creates a new instance of a Lectio struct. Generates a token, if not present in root directory.
-func New(loginInfo *LectioLoginInfo) (*Lectio, error) {
+func NewLectio(loginInfo *LectioLoginInfo) (*Lectio, error) {
 	loginUrl := fmt.Sprintf("https://www.lectio.dk/lectio/%s/login.aspx", loginInfo.SchoolID)
 	jar, err := cookiejar.New(nil)
 	if err != nil {
