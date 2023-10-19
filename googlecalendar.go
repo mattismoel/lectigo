@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -22,10 +23,8 @@ type GoogleCalendar struct {
 	Logger  *log.Logger
 }
 
-
 // Base Google Calendar event struct.
 type GoogleEvent calendar.Event
-
 
 // Creates a new Google Calendar struct instance
 func NewGoogleCalendar(client *http.Client, calendarID string) (*GoogleCalendar, error) {
@@ -239,7 +238,15 @@ func (e *GoogleEvent) ToModule() (*Module, error) {
 		// log.Fatalf("Could not parse end date: %v\n", err)
 	}
 
-	homework := ""
+	var homework, teacher string
+	
+	re := regexp.MustCompile(`Lærer: \[(.*?)\]\nLektier:\n\[(.*?)\]`)
+	matches := re.FindStringSubmatch(e.Description)
+
+	if len(matches) == 3 {
+		teacher = matches[1]
+		homework = matches[2]
+	}
 
 	module := &Module{
 		Id:           strings.TrimPrefix(e.Id, "lec"),
@@ -247,11 +254,10 @@ func (e *GoogleEvent) ToModule() (*Module, error) {
 		StartDate:    start,
 		EndDate:      end,
 		Room:         e.Location,
-		Teacher:      "",
+		Teacher:      teacher,
 		Homework:     homework,
 		ModuleStatus: util.StatusFromColorID(e.ColorId),
 	}
 
 	return module, nil
 }
-

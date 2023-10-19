@@ -3,6 +3,7 @@ package lectigo
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -88,10 +89,15 @@ func (m *Module) ToGoogleEvent() *GoogleEvent {
 		calendarColorID = "2"
 	}
 
-	// description := fmt.Sprintf("%s\n%s", m.Teacher, m.Homework)
+	descLayout := `
+Lærer: %s
+Lektier:
+%s
+	`
+	description := fmt.Sprintf(strings.TrimSpace(descLayout), m.Teacher, m.Homework)
 	return &GoogleEvent{
 			Id:          "lec" + m.Id,
-			Description: "",
+			Description: description,
 			Start: &calendar.EventDateTime{
 				DateTime: m.StartDate.Format(time.RFC3339),
 				TimeZone: "Europe/Copenhagen",
@@ -190,11 +196,10 @@ func (l *Lectio) GetSchedule(week int) (modules map[string]Module, err error) {
 			StartDate:    startDate,
 			EndDate:      endDate,
 			Room:         room,
-			Teacher:      "",
+			Teacher:      teacher,
 			Homework:     homework,
 			ModuleStatus: status,
 		}
-
 		modules[id] = module
 	})
 
@@ -246,7 +251,8 @@ func (m1 *Module) Equals(m2 *Module) bool {
 	m1.StartDate.Equal(m2.StartDate) && 
 	m1.EndDate.Equal(m2.EndDate) && 
 	m1.ModuleStatus == m2.ModuleStatus && 
-	m1.Room == m2.Room
+	m1.Room == m2.Room &&
+	m1.Homework != m2.Homework
 
 	return b
 }
