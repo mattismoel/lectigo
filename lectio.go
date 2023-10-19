@@ -93,7 +93,6 @@ func (m *Module) ToGoogleEvent() *GoogleEvent {
 
 	// description := fmt.Sprintf("%s\n%s", m.Teacher, m.Homework)
 	return &GoogleEvent{
-		event: &calendar.Event{
 			Id:          "lec" + m.Id,
 			Description: "",
 			Start: &calendar.EventDateTime{
@@ -108,7 +107,6 @@ func (m *Module) ToGoogleEvent() *GoogleEvent {
 			Summary:  m.Title,
 			ColorId:  calendarColorID,
 			Status:   "confirmed",
-		},
 	}
 }
 

@@ -21,9 +21,12 @@ type GoogleCalendar struct {
 	Logger  *log.Logger
 }
 
-type GoogleEvent struct {
-	event *calendar.Event
-}
+// Base Google Calendar event struct.
+type GoogleEvent calendar.Event
+
+// type GoogleEvent struct {
+// 	event *calendar.Event
+// }
 
 // Creates a new Google Calendar struct instance
 func NewGoogleCalendar(client *http.Client, calendarID string) (*GoogleCalendar, error) {
@@ -33,7 +36,7 @@ func NewGoogleCalendar(client *http.Client, calendarID string) (*GoogleCalendar,
 	if err != nil {
 		return nil, err
 	}
-	
+
 	calendar := &GoogleCalendar{
 		Service: service,
 		ID:      calendarID,
@@ -42,10 +45,9 @@ func NewGoogleCalendar(client *http.Client, calendarID string) (*GoogleCalendar,
 	return calendar, nil
 }
 
-
 // Returns all modules from Google Calendar.
-func (c *GoogleCalendar) GetModules(weekCount int) (map[string]*calendar.Event, error) {
-	googleCalModules := make(map[string]*calendar.Event)
+func (c *GoogleCalendar) GetEvents(weekCount int) (map[string]*GoogleEvent, error) {
+	googleCalModules := make(map[string]*GoogleEvent)
 	pageToken := ""
 	eventCount := 0
 
@@ -73,7 +75,8 @@ func (c *GoogleCalendar) GetModules(weekCount int) (map[string]*calendar.Event, 
 					defer wg.Done()
 					defer mu.Unlock()
 					mu.Lock()
-					googleCalModules[item.Id] = item
+					gEvent := GoogleEvent(*item)
+					googleCalModules[item.Id] = &gEvent
 					eventCount++
 				}(item)
 			}
@@ -89,7 +92,7 @@ func (c *GoogleCalendar) GetModules(weekCount int) (map[string]*calendar.Event, 
 }
 
 // Updates the Google Calendar with the input Lectio modules and Google Calendar events. The modules input should not be filtered, as the functions handles that (input all modules from Lectio and all events from Google Calendar)
-func (c *GoogleCalendar) UpdateCalendar(lectioModules map[string]Module, googleEvents map[string]*calendar.Event) error {
+func (c *GoogleCalendar) UpdateCalendar(lectioModules map[string]Module, googleEvents map[string]*GoogleEvent) error {
 	var inserted int // For keeping track of inserted events count after execution
 	var updated int  // For keeping track of updated events count after execution
 	var deleted int  // For keeping track of deleted events count after execution
@@ -107,20 +110,18 @@ func (c *GoogleCalendar) UpdateCalendar(lectioModules map[string]Module, googleE
 			// If Lectio module is in Google Calendar
 			key := "lec" + lKey
 			if _, ok := googleEvents[key]; ok {
-				googleEvent := &GoogleEvent{
-					event: googleEvents[key],
-				}
+				googleEvent := *googleEvents[key]
 				googleModule, err := googleEvent.ToModule()
 				if err != nil {
 					return err
 				}
 				needsUpdate := !lModule.Equals(googleModule)
-				isCancelled := googleEvent.event.Status == "cancelled"
+				isCancelled := googleEvent.Status == "cancelled"
 
-				if (needsUpdate || isCancelled) {
-					c.Logger.Printf("Attempting to update %v\n", googleEvent.event.Id)
-					lectioEvent := lModule.ToGoogleEvent()
-					_, err := c.Service.Events.Update(c.ID, googleEvent.event.Id, lectioEvent.event).Do()
+				if needsUpdate || isCancelled {
+					c.Logger.Printf("Attempting to update %v\n", googleEvent.Id)
+					lectioEvent := calendar.Event(*lModule.ToGoogleEvent())
+					_, err := c.Service.Events.Update(c.ID, googleEvent.Id, &lectioEvent).Do()
 					if err != nil {
 						return err
 					}
@@ -129,8 +130,8 @@ func (c *GoogleCalendar) UpdateCalendar(lectioModules map[string]Module, googleE
 					return nil
 				}
 			} else {
-				googleEvent := lModule.ToGoogleEvent()
-				_, err := c.Service.Events.Insert(c.ID, googleEvent.event).Do()
+				googleEvent := calendar.Event(*lModule.ToGoogleEvent())
+				_, err := c.Service.Events.Insert(c.ID, &googleEvent).Do()
 				if err != nil {
 					return err
 				}
@@ -145,7 +146,7 @@ func (c *GoogleCalendar) UpdateCalendar(lectioModules map[string]Module, googleE
 	// Loops through all Google Events and checks if it should be deleted
 	for googleKey, googleEvent := range googleEvents {
 		wg.Add(1)
-		go func(googleKey string, googleEvent *calendar.Event) error {
+		go func(googleKey string, googleEvent *GoogleEvent) error {
 			defer wg.Done()
 			trimPrefix := strings.TrimPrefix(googleKey, "lec")
 
@@ -258,13 +259,13 @@ func (e *GoogleEvent) ToModule() (*Module, error) {
 		return nil, err
 		// log.Fatalf("Could not load location: %v\n", err)
 	}
-	start, err := time.ParseInLocation(time.RFC3339, e.event.Start.DateTime, location)
+	start, err := time.ParseInLocation(time.RFC3339, e.Start.DateTime, location)
 	if err != nil {
 		return nil, err
 		// log.Fatalf("Could not parse start date: %v\n", err)
 	}
 
-	end, err := time.ParseInLocation(time.RFC3339, e.event.End.DateTime, location)
+	end, err := time.ParseInLocation(time.RFC3339, e.End.DateTime, location)
 	if err != nil {
 		return nil, err
 		// log.Fatalf("Could not parse end date: %v\n", err)
@@ -274,19 +275,18 @@ func (e *GoogleEvent) ToModule() (*Module, error) {
 	// fmt.Println(event.Description)
 
 	module := &Module{
-		Id:           strings.TrimPrefix(e.event.Id, "lec"),
-		Title:        e.event.Summary,
+		Id:           strings.TrimPrefix(e.Id, "lec"),
+		Title:        e.Summary,
 		StartDate:    start,
 		EndDate:      end,
-		Room:         e.event.Location,
+		Room:         e.Location,
 		Teacher:      "",
 		Homework:     homework,
-		ModuleStatus: util.StatusFromColorID(e.event.ColorId),
+		ModuleStatus: util.StatusFromColorID(e.ColorId),
 	}
 
 	return module, nil
 }
-
 
 // func (e *GoogleEvent) ToModule(event *calendar.Event) (module *Module, err error) {
 // 	var teacher, homework, status string
