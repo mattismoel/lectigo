@@ -225,7 +225,6 @@ func GetToken(loginUrl string, client *http.Client) (*AuthenticityToken, error) 
 
 	if err != nil {
 		return nil, err
-		// log.Fatal("Error fetching response: ", err)
 	}
 
 	defer response.Body.Close()
@@ -233,7 +232,6 @@ func GetToken(loginUrl string, client *http.Client) (*AuthenticityToken, error) 
 	document, err := goquery.NewDocumentFromReader(response.Body)
 	if err != nil {
 		return nil, err
-		// log.Fatal("Error loading HTTP response body.", err)
 	}
 
 	token, _ := document.Find("input[name=__EVENTVALIDATION]").Attr("value")
