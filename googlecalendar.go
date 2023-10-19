@@ -15,18 +15,17 @@ import (
 	"google.golang.org/api/option"
 )
 
+// Base struct for a Google Calendar client
 type GoogleCalendar struct {
 	Service *calendar.Service
 	ID      string
 	Logger  *log.Logger
 }
 
+
 // Base Google Calendar event struct.
 type GoogleEvent calendar.Event
 
-// type GoogleEvent struct {
-// 	event *calendar.Event
-// }
 
 // Creates a new Google Calendar struct instance
 func NewGoogleCalendar(client *http.Client, calendarID string) (*GoogleCalendar, error) {
@@ -165,8 +164,6 @@ func (c *GoogleCalendar) UpdateCalendar(lectioModules map[string]Module, googleE
 	}
 	wg.Wait()
 
-	// Print statements for displaying results.
-	// Prints missing and extra modules in the Google Calendar
 	fmt.Printf(`
 RESULTS ==============================
 UPDATED %v events in Google Calendar
@@ -223,35 +220,6 @@ func (c *GoogleCalendar) Clear() error {
 	return nil
 }
 
-// func (c *GoogleCalendar) AddModules(modules map[string]Module) {
-// 	startTime := time.Now()
-// 	var updateCount, insertCount int
-// 	wg := sync.WaitGroup{}
-//
-// 	for key, module := range modules {
-// 		wg.Add(1)
-// 		go func(key string, module Module) {
-// 			defer wg.Done()
-// 			calEvent := module.ToGoogleEvent()
-// 			_, err := c.Service.Events.Insert(c.ID, calEvent.event).Do()
-// 			if err != nil {
-// 				c.Logger.Fatalf("Could not insert missing event: %v\n", err)
-// 			}
-// 			insertCount++
-// 			c.Logger.Printf("Inserted new event\n")
-// 		}(key, module)
-// 	}
-// 	wg.Wait()
-//
-// 	// If no modules have been updated or inserted
-// 	if insertCount == 0 && updateCount == 0 {
-// 		log.Printf("Nothing to do. Lectio schedule is up to date with Google Calendar.\n")
-// 		return
-// 	}
-//
-// 	log.Printf("Added %v modules and updated %v modules in Google Calendar in %v\n", insertCount, updateCount, time.Since(startTime))
-// }
-
 // Converts a Google Calendar event to a Lectio module
 func (e *GoogleEvent) ToModule() (*Module, error) {
 	location, err := time.LoadLocation("Europe/Copenhagen")
@@ -272,7 +240,6 @@ func (e *GoogleEvent) ToModule() (*Module, error) {
 	}
 
 	homework := ""
-	// fmt.Println(event.Description)
 
 	module := &Module{
 		Id:           strings.TrimPrefix(e.Id, "lec"),
@@ -288,27 +255,3 @@ func (e *GoogleEvent) ToModule() (*Module, error) {
 	return module, nil
 }
 
-// func (e *GoogleEvent) ToModule(event *calendar.Event) (module *Module, err error) {
-// 	var teacher, homework, status string
-// 	start, err := time.Parse(time.RFC3339, event.Start.DateTime)
-// 	if err != nil {
-// 		log.Fatalf("Could not parse date: %v\n", err)
-// 	}
-//
-// 	end, err := time.Parse(time.RFC3339, event.End.DateTime)
-// 	if err != nil {
-// 		return nil, err
-// 		// log.Fatalf("Could not parse end date: %v\n", err)
-// 	}
-// 	module = &Module{
-// 		Id:           event.Id,
-// 		Title:        event.Summary,
-// 		Room:         event.Location,
-// 		StartDate:    start,
-// 		EndDate:      end,
-// 		Teacher:      teacher,
-// 		Homework:     homework,
-// 		ModuleStatus: status,
-// 	}
-// 	return module, nil
-// }
