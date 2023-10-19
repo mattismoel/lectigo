@@ -40,9 +40,7 @@ type Module struct {
 	ModuleStatus string    `json:"status"`    // The status of the module (eg. "Ændret" or "Aflyst")
 }
 
-type AuthenticityToken struct {
-	Token string
-}
+type AuthenticityToken string
 
 // Creates a new instance of a Lectio struct. Generates a token, if not present in root directory.
 func NewLectio(loginInfo *LectioLoginInfo) (*Lectio, error) {
@@ -62,7 +60,7 @@ func NewLectio(loginInfo *LectioLoginInfo) (*Lectio, error) {
 	err = collector.Post(loginUrl, map[string]string{
 		"m$Content$username": loginInfo.Username,
 		"m$Content$password": loginInfo.Password,
-		"__EVENTVALIDATION":  authToken.Token,
+		"__EVENTVALIDATION":  string(*authToken),
 		"__EVENTTARGET":      "m$Content$submitbtn2",
 		"__EVENTARGUMENT":    "",
 		"masterfootervalue":  "X1!ÆØÅ",
@@ -76,7 +74,6 @@ func NewLectio(loginInfo *LectioLoginInfo) (*Lectio, error) {
 	lectio := &Lectio{
 		Client:    client,
 		Collector: collector,
-		//LoginInfo: loginInfo,
 	}
 	return lectio, nil
 }
@@ -241,7 +238,7 @@ func GetToken(loginUrl string, client *http.Client) (*AuthenticityToken, error) 
 
 	token, _ := document.Find("input[name=__EVENTVALIDATION]").Attr("value")
 
-	authenticityToken := AuthenticityToken{Token: token}
+	authenticityToken := AuthenticityToken(token)
 	return &authenticityToken, nil
 }
 
