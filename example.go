@@ -10,7 +10,7 @@ import (
 	"google.golang.org/api/calendar/v3"
 )
 
-func main() {
+func _main() {
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatalf("Could not load environment variables: %v\n", err)
