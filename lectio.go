@@ -3,7 +3,6 @@ package lectigo
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
