@@ -224,18 +224,15 @@ func (e *GoogleEvent) ToModule() (*Module, error) {
 	location, err := time.LoadLocation("Europe/Copenhagen")
 	if err != nil {
 		return nil, err
-		// log.Fatalf("Could not load location: %v\n", err)
 	}
 	start, err := time.ParseInLocation(time.RFC3339, e.Start.DateTime, location)
 	if err != nil {
 		return nil, err
-		// log.Fatalf("Could not parse start date: %v\n", err)
 	}
 
 	end, err := time.ParseInLocation(time.RFC3339, e.End.DateTime, location)
 	if err != nil {
 		return nil, err
-		// log.Fatalf("Could not parse end date: %v\n", err)
 	}
 
 	var homework, teacher string

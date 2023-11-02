@@ -5,6 +5,7 @@ go 1.21.1
 require (
 	github.com/PuerkitoBio/goquery v1.8.1
 	github.com/gocolly/colly v1.2.0
+	github.com/joho/godotenv v1.5.1
 	github.com/mattismoel/icalendar v0.0.0-20231018213409-146718f87d38
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
 	golang.org/x/oauth2 v0.12.0
@@ -25,7 +26,6 @@ require (
 	github.com/google/uuid v1.3.1 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.2.5 // indirect
 	github.com/googleapis/gax-go/v2 v2.12.0 // indirect
-	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/kennygrant/sanitize v1.2.4 // indirect
 	github.com/saintfish/chardet v0.0.0-20230101081208-5e3ef4b5456d // indirect
 	github.com/temoto/robotstxt v1.1.2 // indirect
@@ -39,5 +39,3 @@ require (
 	google.golang.org/grpc v1.57.0 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
 )
-
-replace github.com/mattismoel/icalendar => /Users/mattiskristensen/Nextcloud/Hobby/Programmering/Projekter/icalendar/
