@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"golang.org/x/oauth2"
 )
@@ -36,15 +38,14 @@ func ColorIDFromStatus(status string) string {
 }
 
 // Returns the HTTP client from a token.json file, if present
-func GetClient(config *oauth2.Config) (*http.Client, error) {
-	tokenFile := "token.json"
-	token, err := tokenFromFile(tokenFile)
+func GetClient(config *oauth2.Config, tokenPath string) (*http.Client, error) {
+	token, err := tokenFromFile(tokenPath)
 	if err != nil {
 		token, err = getTokenFromWeb(config)
 		if err != nil {
 			return nil, err
 		}
-		saveToken(tokenFile, token)
+		saveToken(tokenPath, token)
 	}
 	return config.Client(context.Background(), token), nil
 }
@@ -52,15 +53,26 @@ func GetClient(config *oauth2.Config) (*http.Client, error) {
 func getTokenFromWeb(config *oauth2.Config) (*oauth2.Token, error) {
 	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
 
-	fmt.Printf("Go to the following link in your browser and type the authorization code %q\n", authURL)
-
 	var authCode string
-	if _, err := fmt.Scan(&authCode); err != nil {
+
+	fmt.Printf("Visit here: %q\n", authURL)
+
+	server := &http.Server{Addr: ":8080"}
+	http.HandleFunc("/oauth", func(w http.ResponseWriter, r *http.Request) {
+		authCode = r.URL.Query().Get("code")
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := server.Shutdown(ctx); err != nil {
+			log.Fatalf("could not shut down server: %v\n", err)
+		}
+
+	})
+
+	if err := server.ListenAndServe(); err != http.ErrServerClosed {
 		return nil, err
 	}
 
 	token, err := config.Exchange(context.TODO(), authCode)
-
 	if err != nil {
 		return nil, err
 	}
