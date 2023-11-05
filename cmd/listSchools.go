@@ -13,13 +13,16 @@ import (
 // listSchoolsCmd represents the listSchools command
 var listSchoolsCmd = &cobra.Command{
 	Use:   "listSchools",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Short: "Exports the schools registered at Lectio in given encoding scheme at given output path",
+	Long: `Exports the schools registered at Lectio in a given encoding scheme. Available schemes are:
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+json, yaml, xml
+
+The encoded file is exported at the given output path. The path should include at least the base filename. Extension is optional.
+
+Example:
+
+	lego listSchools -f yaml -o ./schoolLists/school.yaml`,
 	Run: func(cmd *cobra.Command, args []string) {
 		format, err := cmd.Flags().GetString("format")
 		if err != nil {
@@ -41,7 +44,7 @@ func init() {
 	rootCmd.AddCommand(listSchoolsCmd)
 
 	listSchoolsCmd.Flags().StringP("format", "f", "json", "The format of which the schools list should be exported as")
-	listSchoolsCmd.Flags().StringP("path", "o", "schools.json", "The path to which the schools list should be exported to")
+	listSchoolsCmd.Flags().StringP("path", "o", "./schoolexports/schools", "The path to which the schools list should be exported to")
 	// Here you will define your flags and configuration settings.
 
 	// Cobra supports Persistent Flags which will work for this command
