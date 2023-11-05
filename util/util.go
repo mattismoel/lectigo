@@ -2,11 +2,13 @@ package util
 
 import (
 	"encoding/json"
-	"log"
+	"encoding/xml"
+	"fmt"
 	"os"
 	"regexp"
 	"strings"
 
+	"github.com/goccy/go-yaml"
 	"github.com/gocolly/colly"
 )
 
@@ -53,13 +55,15 @@ func PrettyPrint(i interface{}) string {
 	return string(s)
 }
 
+// Exports the Lectio registered schools to a desired format (json) at a specified path.
+// The output path should contain the filename itself without the extension
 func ExportSchools(format, outputPath string) error {
 	baseURL := "https://lectio.dk/lectio/login_list.aspx"
 	c := colly.NewCollector()
 
 	type school struct {
-		SchoolID string `json:"schoolID"`
-		Name     string `json:"name"`
+		SchoolID string `json:"schoolID" yaml:"schoolID" xml:"schoolID"`
+		Name     string `json:"name" yaml:"name" xml:"name"`
 	}
 	var schools []school
 
@@ -88,28 +92,41 @@ func ExportSchools(format, outputPath string) error {
 		return err
 	}
 
-	for _, school := range schools {
-		log.Printf(PrettyPrint(school))
+	// If file name does not have file extension, add it
+	extension := fmt.Sprintf(".%s", format)
+	if !strings.HasSuffix(outputPath, extension) {
+		outputPath += extension
 	}
+
+	// Open file for writing
+	f, err := os.OpenFile(outputPath, os.O_RDWR|os.O_CREATE, 0755)
+	if err != nil {
+		return err
+	}
+
+	// Check format and export accordingly
 	switch format {
 	case "json":
-		// Make sure that filename is specified in output path
-		if !strings.HasSuffix(outputPath, ".json") {
-			outputPath += ".json"
-		}
-		f, err := os.OpenFile(outputPath, os.O_RDWR | os.O_CREATE, 0755)
-		if err != nil {
-			return err
-		}
 		defer f.Close()
-		err = json.NewEncoder(f).Encode(schools)
+		err := json.NewEncoder(f).Encode(schools)
 		if err != nil {
 			return err
 		}
 	case "yaml":
+		defer f.Close()
+		err := yaml.NewEncoder(f).Encode(schools)
+		if err != nil {
+			return err
+		}
 		break
-	}
+	case "xml":
+		defer f.Close()
+		err := xml.NewEncoder(f).Encode(schools)
+		if err != nil {
+			return err
+		}
 
+	}
 
 	return nil
 }
