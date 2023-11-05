@@ -7,6 +7,7 @@ require (
 	github.com/gocolly/colly v1.2.0
 	github.com/joho/godotenv v1.5.1
 	github.com/mattismoel/icalendar v0.0.0-20231018213409-146718f87d38
+	github.com/spf13/cobra v1.7.0
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
 	golang.org/x/oauth2 v0.12.0
 	google.golang.org/api v0.142.0
@@ -26,8 +27,10 @@ require (
 	github.com/google/uuid v1.3.1 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.2.5 // indirect
 	github.com/googleapis/gax-go/v2 v2.12.0 // indirect
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/kennygrant/sanitize v1.2.4 // indirect
 	github.com/saintfish/chardet v0.0.0-20230101081208-5e3ef4b5456d // indirect
+	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/temoto/robotstxt v1.1.2 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	golang.org/x/crypto v0.13.0 // indirect
