@@ -191,7 +191,6 @@ func (c *GoogleCalendar) Clear() error {
 		r, err := req.Do()
 		if err != nil {
 			return err
-			// log.Fatalf("Could not retrieve events: %v\n", err)
 		}
 		for _, item := range r.Items {
 			if strings.Contains(item.Id, "lec") {
@@ -201,7 +200,6 @@ func (c *GoogleCalendar) Clear() error {
 					err := c.Service.Events.Delete(c.ID, item.Id).Do()
 					if err != nil {
 						return err
-						// log.Fatalf("Could not delete event %v: %v\n", item.Id, err)
 					}
 					eventCount++
 					return nil

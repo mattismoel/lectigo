@@ -313,8 +313,8 @@ func (m1 *Module) Equals(m2 *Module) bool {
 		m1.StartDate.Equal(m2.StartDate) &&
 		m1.EndDate.Equal(m2.EndDate) &&
 		m1.ModuleStatus == m2.ModuleStatus &&
-		m1.Room == m2.Room &&
-		m1.Homework != m2.Homework
+		m1.Room == m2.Room
+		// m1.Homework != m2.Homework
 
 	return b
 }
