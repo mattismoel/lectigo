@@ -2,6 +2,12 @@ package util
 
 import (
 	"encoding/json"
+	"log"
+	"os"
+	"regexp"
+	"strings"
+
+	"github.com/gocolly/colly"
 )
 
 // Creates a map consisting of all values from both input maps
@@ -45,4 +51,65 @@ func CompareMaps[K comparable, V any](from map[K]V, to map[K]V) (extras map[K]V,
 func PrettyPrint(i interface{}) string {
 	s, _ := json.MarshalIndent(i, "", "\t")
 	return string(s)
+}
+
+func ExportSchools(format, outputPath string) error {
+	baseURL := "https://lectio.dk/lectio/login_list.aspx"
+	c := colly.NewCollector()
+
+	type school struct {
+		SchoolID string `json:"schoolID"`
+		Name     string `json:"name"`
+	}
+	var schools []school
+
+	c.OnHTML(".buttonHeader>a[href]", func(h *colly.HTMLElement) {
+		link := h.Attr("href")
+		if strings.Contains(link, "/default.aspx") {
+			schoolName := h.Text
+			var schoolID string
+			re := regexp.MustCompile(`/lectio/(\d+)/default.aspx`)
+			matches := re.FindStringSubmatch(link)
+
+			if len(matches) == 2 {
+				schoolID = matches[1]
+				schools = append(schools, school{
+					SchoolID: schoolID,
+					Name:     schoolName,
+				})
+			}
+
+			return
+		}
+	})
+
+	err := c.Visit(baseURL)
+	if err != nil {
+		return err
+	}
+
+	for _, school := range schools {
+		log.Printf(PrettyPrint(school))
+	}
+	switch format {
+	case "json":
+		// Make sure that filename is specified in output path
+		if !strings.HasSuffix(outputPath, ".json") {
+			outputPath += ".json"
+		}
+		f, err := os.OpenFile(outputPath, os.O_RDWR | os.O_CREATE, 0755)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		err = json.NewEncoder(f).Encode(schools)
+		if err != nil {
+			return err
+		}
+	case "yaml":
+		break
+	}
+
+
+	return nil
 }
