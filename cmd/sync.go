@@ -16,14 +16,14 @@ import (
 	"google.golang.org/api/calendar/v3"
 )
 
-var (
-	username   string
-	password   string
-	schoolID   string
-	calendarID string
-	tokenPath  string
-	weeks      int
-)
+// var (
+// 	username   string
+// 	password   string
+// 	schoolID   string
+// 	calendarID string
+// 	tokenPath  string
+// 	weeks      int
+// )
 
 // syncCmd represents the sync command
 var syncCmd = &cobra.Command{
@@ -31,6 +31,13 @@ var syncCmd = &cobra.Command{
 	Short: "Syncs a Lectio schedule with a Google Calendar",
 	Long:  `Synchronises a users Lectio scedule with Google Calendar. The users Lectio login info as well as Google Calendar info is provided.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		username, _ := cmd.Flags().GetString("username")
+		password, _ := cmd.Flags().GetString("password")
+		schoolID, _ := cmd.Flags().GetString("schoolID")
+		calendarID, _ := cmd.Flags().GetString("calendarID")
+		tokenPath, _ := cmd.Flags().GetString("tokenPath")
+		weeks, _ := cmd.Flags().GetInt("weeks")
+
 		fmt.Println("Attempting to sync Lectio and Google Calendar...")
 
 		// Reads the credentials file and creates a config from it - this is used to create the client
@@ -85,12 +92,12 @@ var syncCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(syncCmd)
 
-	syncCmd.Flags().StringVarP(&username, "username", "u", "", "Lectio username (required)")
-	syncCmd.Flags().StringVarP(&password, "password", "p", "", "Lectio password (required)")
-	syncCmd.Flags().StringVarP(&schoolID, "schoolID", "s", "", "Lectio school ID (required)")
-	syncCmd.Flags().StringVarP(&calendarID, "calendarID", "c", "primary", "Google Calendar calendar ID")
-	syncCmd.Flags().IntVarP(&weeks, "weeks", "w", 2, "Amount of weeks to sync")
-	syncCmd.Flags().StringVarP(&tokenPath, "tokenPath", "t", "token.json", "The path to a Google OAuth token file")
+	syncCmd.Flags().StringP("username", "u", "", "Lectio username (required)")
+	syncCmd.Flags().StringP("password", "p", "", "Lectio password (required)")
+	syncCmd.Flags().StringP("schoolID", "s", "", "Lectio school ID (required)")
+	syncCmd.Flags().IntP("weeks", "w", 2, "Amount of weeks to sync")
+	syncCmd.Flags().StringP("calendarID", "c", "primary", "Google Calendar calendar ID")
+	syncCmd.Flags().StringP("tokenPath", "t", "token.json", "The path to a Google OAuth token file")
 
 	syncCmd.MarkFlagRequired("username")
 	syncCmd.MarkFlagRequired("password")

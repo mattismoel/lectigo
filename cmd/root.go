@@ -32,6 +32,7 @@ func Execute() {
 }
 
 func init() {
+	syncCmd.PersistentFlags().StringP("calendarID", "c", "primary", "Google Calendar calendar ID")
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
