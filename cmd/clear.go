@@ -4,7 +4,6 @@ Copyright © 2023 Mattis Møl Kristensen <mattismoel@gmail.com>
 package cmd
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -21,10 +20,7 @@ var clearCmd = &cobra.Command{
 	Use:   "clear",
 	Short: "Clears the users Google Calendar",
 	Long: `Clears the users Google Calendar from Lectio events. 
-	When used, only Lectio events are targeted, therefore leaving any personal events intact.
-	Usage:
-		lego clear
-	`,
+	When used, only Lectio events are targeted, therefore leaving any personal events intact.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		calendarID, err := cmd.Flags().GetString("calendarID")
 		if err != nil {
