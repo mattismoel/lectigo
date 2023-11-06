@@ -47,7 +47,6 @@ Clearing all Lectio modules from Google Calendar
 $ lego clear -c somecalendarid1234@group.calendar.google.com
 ```
 
-
 # Google OAuth authentication
 
 This project makes use of the [Google Calendar API](google.golang.org/api/calendar/v3), and therefore needs you to log in with your Google Account. When the application is run for the first time, a link will appear for you to log in. Click this link and enter confirm that Lectigo can modify your Google Calendar. When confirmed the syncing process should start automagically.
