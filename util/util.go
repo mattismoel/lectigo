@@ -71,6 +71,14 @@ func ExportSchools(format, outputPath string) error {
 		link := h.Attr("href")
 		if strings.Contains(link, "/default.aspx") {
 			schoolName := h.Text
+
+			var	hyphenRune rune = '\u2013'
+			if strings.ContainsRune(schoolName, hyphenRune) {
+				fmt.Println(schoolName)
+				schoolName = strings.ReplaceAll(schoolName, string(hyphenRune), "-")
+				fmt.Println(schoolName)
+			}
+
 			var schoolID string
 			re := regexp.MustCompile(`/lectio/(\d+)/default.aspx`)
 			matches := re.FindStringSubmatch(link)
