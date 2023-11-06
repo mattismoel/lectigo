@@ -120,8 +120,16 @@ func ExportSchools(format, outputPath string) error {
 		}
 		break
 	case "xml":
+		type XMLSchools struct {
+			XMLName xml.Name `xml:"schools"`
+			Schools []school `xml:"school"`
+		}
+
+		xmlSchools := &XMLSchools{}
+		xmlSchools.Schools = schools
+
 		defer f.Close()
-		err := xml.NewEncoder(f).Encode(schools)
+		err := xml.NewEncoder(f).Encode(xmlSchools)
 		if err != nil {
 			return err
 		}
